@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Local tooling / editor state
+.claude/settings.local.json
+.tokensave/
+.idea/
+.vscode/
+
+# Generated engine output (reproduce with: python core/reconcile.py)
+core/reconcile_output.json
+
+# Member documents must never be committed. Nothing this product reads
+# belongs in version control, including anything used for local testing.
+*.pdf
+*.zip
+real/
+documents/
