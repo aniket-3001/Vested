@@ -1,0 +1,5 @@
+Docs/
+**/__pycache__/
+**/*.pyc
+**/reconcile_output.json
+.git/
