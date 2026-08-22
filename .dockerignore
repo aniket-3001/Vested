@@ -1,0 +1,9 @@
+Docs/
+tools/
+tests/
+**/__pycache__/
+**/*.pyc
+**/reconcile_output.json
+.git/
+.gcloudignore
+.dockerignore
