@@ -61,6 +61,18 @@ Two properties worth knowing:
   before deploying and returns traffic to it if the new revision does not answer
   `/status` with 200. The demo link is the deliverable; a red build must not be
   able to take it down.
+
+  **This path has never executed.** Every deploy so far has passed verification,
+  so the rollback step has not run once. An untested recovery path is a belief
+  about a safety net rather than a safety net. `.github/verify-rollback.sh`
+  exercises it end to end against a throwaway service — it deploys a good
+  revision, deploys one rigged to fail `/status`, runs the same
+  `update-traffic` command the workflow runs, and asserts traffic came back.
+  Run it before relying on the rollback:
+
+  ```bash
+  bash .github/verify-rollback.sh
+  ```
 - **Pull requests never deploy.** The deploy job is gated on the event being a
   push to `main`, so a fork's pull request runs tests and never sees
   credentials.

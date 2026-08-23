@@ -1,5 +1,24 @@
+# Nothing here is needed to serve a request. The Dockerfile copies only
+# requirements.txt, app/ and core/, so anything else in the upload is build
+# latency and a larger surface than the image actually has.
 Docs/
+tests/
+tools/
+.github/
 **/__pycache__/
 **/*.pyc
 **/reconcile_output.json
 .git/
+.gitignore
+README.md
+DEPLOY.md
+requirements-dev.txt
+
+# Member documents. These are already blocked by .gitignore and so should never
+# be present, but the source upload reads the working directory rather than the
+# git index - an untracked real passbook sitting in the folder would otherwise
+# be shipped to Cloud Build.
+*.pdf
+*.zip
+real/
+documents/
