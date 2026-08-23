@@ -182,7 +182,7 @@ def main() -> int:
     checks += [
         ("the UAN card shows the UAN", "100999888777" in card),
         ("the UAN card reads date of birth from the passbook",
-         "14 August 1992" in card),
+         "25 December 1990" in card),
         ("it lists every member ID under the number",
          len(re.findall(r"<code>[A-Z]{5}\d{17}</code>", card)) >= 2),
         ("it is honest that it is not the official card",
@@ -197,16 +197,19 @@ def main() -> int:
     clash = analyse(text_26as=SAMPLE_26AS, service_history=SAMPLE_SERVICE_HISTORY,
                     bank=SAMPLE_BANK,
                     passbooks=[SAMPLE_PASSBOOKS[0],
-                               SAMPLE_PASSBOOKS[1].replace("14-08-1992", "15-08-1992")])
+                               SAMPLE_PASSBOOKS[1].replace("25-12-1990", "26-12-1990")])
     checks += [
         ("a date-of-birth clash across passbooks is detected",
-         clash.identity["dob_conflict"] == ["1992-08-14", "1992-08-15"]),
+         clash.identity["dob_conflict"] == ["1990-12-25", "1990-12-26"]),
         ("agreeing passbooks report no clash",
          build("100999888777").identity["dob_conflict"] == []),
         ("a date of birth is read at all",
          build("100999888777").identity["dob"] is not None),
+        # Asserting the whole date, not just the month: the failure this guards
+        # against is picking up some other date on the page, and a bare month
+        # check passes for any date that happens to share it.
         ("date of birth is still not mistaken for a joining date",
-         build("100999888777").identity["dob"].month == 8),
+         build("100999888777").identity["dob"].isoformat() == "1990-12-25"),
     ]
 
     contact = get("/contact", "100999888777")

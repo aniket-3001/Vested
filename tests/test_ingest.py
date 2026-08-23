@@ -31,7 +31,9 @@ import app.engine as E
 from app.ingest import IngestError, extract, sort_uploads
 from core.parsers import parse_26as, parse_passbook, parse_service_history, verify_26as
 
-PASSWORD = "14081992"
+# Illustrative only. Day 25 cannot be a month, so the fixture also documents
+# that Form 26AS wants DDMMYYYY rather than MMDDYYYY.
+PASSWORD = "25121990"
 
 
 def make_pdf(text: str, password: str | None = None, lines_per_page: int = 46) -> bytes:

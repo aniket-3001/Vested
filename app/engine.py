@@ -129,7 +129,7 @@ EPF Member Passbook
 Establishment ID / Name   BLBNG0012345000 / ACME TECHNOLOGIES PVT LTD
 Member ID                 BLBNG00123450000001234
 Member Name               RAHUL K SINGH
-Date of Birth             14-08-1992
+Date of Birth             25-12-1990
 Date of Joining (EPF)     01-04-2020
 UAN                       100999888777
 
@@ -152,7 +152,7 @@ EPF Member Passbook
 Establishment ID / Name   PNPUN0067890000 / BOREAL SYSTEMS PVT LTD
 Member ID                 PNPUN00678900000005678
 Member Name               RAHUL SINGH
-Date of Birth             14-08-1992
+Date of Birth             25-12-1990
 Date of Joining (EPF)     01-05-2021
 UAN                       100999888777
 

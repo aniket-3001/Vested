@@ -42,7 +42,7 @@ def pb(months, mid="BLBNG00123450000001234", est="ACME TECHNOLOGIES PVT LTD"):
 Establishment ID / Name   BLBNG0012345000 / {est}
 Member ID                 {mid}
 Member Name               RAHUL K SINGH
-Date of Birth             14-08-1992
+Date of Birth             25-12-1990
 Date of Joining (EPF)     01-04-2020
 UAN                       100999888777
 

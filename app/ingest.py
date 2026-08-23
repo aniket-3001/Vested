@@ -82,8 +82,8 @@ def _from_pdf(data: bytes, password: str | None) -> tuple[str, int]:
             if password:
                 raise IngestError(
                     "That password did not work. Form 26AS uses your date of "
-                    "birth written as DDMMYYYY - for 14 August 1992 that is "
-                    "14081992."
+                    "birth written as DDMMYYYY - for 25 December 1990 that is "
+                    "25121990."
                 )
             raise IngestError(
                 "This PDF is password protected. Enter your date of birth as "

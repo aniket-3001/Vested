@@ -655,3 +655,43 @@ expiry. And the shared demo accounts had to fork into a private session on
 edit, or one judge typing dates would have changed what every other judge saw.
 
 **540 assertions across 17 suites.** Deployed.
+
+---
+
+## 23 Aug 2026 — the repository history is reconstructed
+
+This project was built without version control. The git history was created
+afterwards, in one sitting, by committing the finished tree in dependency order.
+
+That is worth stating here rather than leaving for someone to infer, because the
+commit dates do not say it themselves. They are spread across 20–22 August,
+which is when the work genuinely happened — the file timestamps agree — but they
+were all written on the 23rd. The history is an honest reconstruction of a real
+build, not a record kept as it went.
+
+The distinction matters for exactly one reason: a reader is entitled to assume a
+commit is a contemporaneous record unless told otherwise. Here it is not. Each
+commit's *content* is what was built, its *message* was written with hindsight,
+and no commit was ever a checkpoint anyone worked from.
+
+`Co-Authored-By: Codex` on 35 of those commits is accurate — Codex wrote that
+code. It was applied retrospectively along with everything else.
+
+## 23 Aug 2026 — a date of birth that was not a fixture
+
+`14-08-1992` appeared in the sample passbooks, in the parser fixtures, in three
+test suites, and in the on-screen help explaining that Form 26AS is locked with
+your date of birth as DDMMYYYY. One real date, reused as convenient filler and
+then shipped.
+
+Nothing about it was load-bearing, which is the point: it survived because it
+never caused a failure. Replaced throughout with `25-12-1990`, chosen so the day
+cannot be read as a month and the example still teaches the format.
+
+One test failed on the change, and it deserved to. `dob.month == 8` was standing
+in for *"the date of birth is still not mistaken for a joining date"* — a check
+that passes for any wrong date sharing a month with the right one. It now
+asserts the whole date.
+
+**Rule.** A placeholder is a decision, not a leftover. If a real value is easier
+to type than an invented one, it will end up in the product.

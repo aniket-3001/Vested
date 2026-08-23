@@ -40,7 +40,7 @@ def year_page(mid, fy, months, closing, extra_id=None):
     head = f"""EPF Passbook - Financial Year {fy}
 Member ID {mid}   Establishment Name  ACME TECHNOLOGIES PVT LTD
 Account Number {UAN}  UAN {UAN}
-Date of Birth 14-08-1992
+Date of Birth 25-12-1990
 Wage Month  Transaction Date  Particulars  Employee Employer Pension
 Balance Balance Balance"""
     if extra_id:
