@@ -161,26 +161,35 @@ Every page under 11 KB, no JS required, readable without CSS
 
 ## 8. What is still open
 
-### Decision: no model, and no Codex
+### Decision: built with Codex, ships without a model
 
-Both were dropped deliberately, and the reasoning is worth keeping.
+These are two separate questions and an earlier draft of this section ran them
+together. Splitting them properly:
 
-**Codex** was dropped because the build was done with other tooling and claiming
-otherwise would be false on a criterion — *Honesty* — that is explicitly scored
-and likely to be probed in a filmed Q&A.
+**Codex wrote most of this code.** It was the build tool for the engine, the
+parsers, the views and the test suites. The git history records this as
+`Co-Authored-By: Codex` on the commits it authored, which is the same claim made
+in the same place a reviewer would look for it.
 
-**The model backend** was dropped after measuring what it would actually do. On
-a realistic upload — Latin-script name, no bank statement — it fires **zero API
-calls** and the findings are byte-identical. Its only genuine gain is
-non-Devanagari script support, which the demo would never show, and the cost is
-downgrading `/privacy` from *"nothing leaves this server"* to a qualified claim.
+An earlier version of this section said Codex had been dropped in favour of
+other tooling. That was wrong, and it is corrected here rather than quietly
+edited out, because a build log that revises its own record without saying so is
+worth less than no build log.
 
-The trade is stated plainly in FEATURE-SPEC §8.1: this build satisfies neither
-branch of *"built with Codex or powered by an OpenAI model."* It was chosen over
-a thin integration that would have been decorative.
+**The model backend is still deliberately not enabled at runtime.** That
+decision was made after measuring what it would actually do. On a realistic
+upload — Latin-script name, no bank statement — it fires **zero API calls** and
+the findings are byte-identical. Its only genuine gain is non-Devanagari script
+support, which the demo would never show, and the cost is downgrading
+`/privacy` from *"nothing leaves this server"* to a qualified claim.
 
-What the decision buys: determinism, reproducibility, zero cost, and a privacy
-claim that needs no footnote.
+So against *"built with Codex or powered by an OpenAI model"*: the **first
+branch is satisfied**, the second is declined on the privacy grounds set out in
+FEATURE-SPEC §8.1. `OpenAIBackend` exists as a working extension point and has
+never executed.
+
+What declining the runtime model buys: determinism, reproducibility, zero cost,
+and a privacy claim that needs no footnote.
 
 ### One open dependency
 

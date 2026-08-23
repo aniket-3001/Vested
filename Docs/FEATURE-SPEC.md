@@ -153,7 +153,8 @@ Every step works **without JavaScript**, and remains readable **without CSS**.
 
 | Rule | How it is met |
 |---|---|
-| Powered by an OpenAI model | **Deliberately not used.** The prototype ships local-only and fully deterministic — see §8.1 |
+| Built with Codex | **Yes.** Codex wrote most of this code; the git history attributes it commit by commit |
+| Powered by an OpenAI model | **Deliberately declined at runtime.** The prototype ships local-only and fully deterministic — see §8.1 |
 | No live government system contact | Nothing is submitted anywhere; letters are handed to the member to file |
 | Mock or synthetic data only | Sample record fully synthetic; uploaded documents never stored |
 | No real Aadhaar, PAN, OTPs, payment details | None collected; no identifier is persisted |
@@ -183,9 +184,11 @@ What it costs: **scripts other than Devanagari are unsupported** (the offline
 transliteration table covers one script), and **scanned or photographed
 documents are rejected** rather than read. Both are disclosed on-screen.
 
-The consequence for the hackathon rules is stated plainly: with Codex also not
-used, this build satisfies neither branch of *"built with Codex or powered by an
-OpenAI model."* That was a deliberate trade against an honest privacy position.
+The position on the hackathon rules is stated plainly. Of *"built with Codex or
+powered by an OpenAI model"*, the **first branch is satisfied and the second is
+declined**. Codex wrote most of this code and the git history attributes it
+commit by commit; no OpenAI model runs at inference time, which is the trade
+made in favour of an unqualified privacy claim.
 
 ### 8.2 Other exclusions
 
