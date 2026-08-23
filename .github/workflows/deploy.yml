@@ -28,9 +28,9 @@ jobs:
     name: tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -78,17 +78,17 @@ jobs:
       contents: read
       id-token: write   # required to mint the OIDC token that WIF exchanges
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Workload Identity Federation: GitHub's OIDC token is exchanged for a
       # short-lived GCP credential. No service-account key exists anywhere.
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       # Recorded before the deploy so a bad revision can be rolled back to a
       # revision known to have served traffic.
