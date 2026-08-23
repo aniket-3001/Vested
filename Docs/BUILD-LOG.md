@@ -138,9 +138,9 @@ The claim had been true of the *codebase* and false of the *product*. Fixed by w
 ## 7. What exists now
 
 ```
-4,322 lines of Python across 13 modules
-52 assertions across 7 suites — all passing
-Every page under 11 KB, no JS required, readable without CSS
+9,493 lines of Python, 7,349 of them across 15 shipping modules
+443 checks across 9 suites — all passing
+Every page under 6 KB, no JS required, readable without CSS
 ```
 
 | Capability | State |
@@ -211,13 +211,13 @@ Source it from someone with **two or more past employers** — a single-employer
 | Criterion | Standing |
 |---|---|
 | **Problem** | Strong. Documented numbers on a portal the brief names by name |
-| **Working build** | Strong on synthetic data. **Unproven on real data** |
-| **Usability** | Strong. <11 KB, no JS, plain language, Hindi alongside |
+| **Working build** | Strong. Parsers corrected against real passbooks and a real 26AS; the committed suite runs on synthetic fixtures in the real layout |
+| **Usability** | Strong. <6 KB, no JS, plain language, Hindi alongside |
 | **Product thinking** | Strong. Approve-only, estimate/fact separation, silence guard |
 | **End-to-end** | Strong. Attacks the process, not the interface |
 | **Honesty** | Limitations are on-screen and in these documents, not buried. `/privacy` argues against trusting itself |
 
-**The single biggest risk remains the same one flagged from the beginning:** every green test runs on data we authored. Closing that is one afternoon with a real 26AS.
+**The biggest risk flagged from the beginning was that every green test ran on data we authored.** That afternoon happened — see the 21 August entry, where a real 26AS and ten real passbooks found four parser defects that had raised no error and returned plausible nonsense. What remains is narrower but real: the corrected parsers are pinned by synthetic fixtures written in the real layout, because member documents cannot be committed to a public repository. One member's document set is also not a sample. Every layout we have not seen is still untested.
 
 ---
 

@@ -137,7 +137,7 @@ Every step works **without JavaScript**, and remains readable **without CSS**.
 
 ## 6. Non-functional requirements
 
-**Bandwidth.** Every page under 11 KB. System font stack — nothing downloaded before text renders. No client framework, no build step.
+**Bandwidth.** Every page under 6 KB. System font stack — nothing downloaded before text renders. No client framework, no build step.
 
 **Accessibility.** Semantic HTML; usable with CSS disabled; no JavaScript dependency; 18px base type; high contrast; large touch targets; one decision per screen.
 

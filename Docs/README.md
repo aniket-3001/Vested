@@ -60,8 +60,8 @@ python core/reconcile.py    # any spike runs standalone
 ## Status
 
 ```
-4,322 lines · 13 modules · 52 assertions across 7 suites — all passing
-Every page under 11 KB · no JavaScript required · readable without CSS
+9,493 lines of Python · 15 modules · 443 checks across 9 suites — all passing
+Every page under 6 KB · no JavaScript required · readable without CSS
 ```
 
 **Runs local-only by choice.** No model, no API key, no network call. Every

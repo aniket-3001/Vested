@@ -62,7 +62,7 @@ A second constraint keeps this honest: **every model call must have a determinis
 └──────────────────────┬──────────────────────────────────┘
                        │
 ┌── PRESENTATION (app/views.py) ──────────────────────────┐
-│  server-rendered HTML · no JS · no web fonts · <11 KB   │
+│  server-rendered HTML · no JS · no web fonts · <6 KB    │
 │  engine vocabulary never reaches the screen             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -73,19 +73,23 @@ A second constraint keeps this honest: **every model call must have a determinis
 
 | Module | Lines | Responsibility |
 |---|---:|---|
-| `app/ingest.py` | 173 | Bytes → text. PDF/TXT/ZIP, passwords, type detection |
-| `app/models.py` | 307 | Model backend abstraction, OpenAI + offline, self-test |
-| `app/name_match.py` | 237 | Person-name matching across scripts |
-| `app/engine.py` | 526 | Orchestration. Contains no reasoning of its own |
-| `app/views.py` | 517 | HTML rendering, plain-language translation |
-| `app/server.py` | 163 | Routing, ephemeral sessions. 163 lines, no logic |
-| `core/reconcile.py` | 611 | **The solver.** Contradiction detection |
+| `app/ingest.py` | 239 | Bytes → text. PDF/TXT/ZIP, passwords, type detection |
+| `app/models.py` | 322 | Model backend abstraction, OpenAI + offline, self-test |
+| `app/name_match.py` | 240 | Person-name matching across scripts |
+| `app/engine.py` | 959 | Orchestration. Contains no reasoning of its own |
+| `app/views.py` | 1610 | HTML rendering, plain-language translation |
+| `app/manage.py` | 642 | The Manage half of the portal — KYC, exit, nomination, transfer |
+| `app/demo.py` | 204 | Two mock accounts, so the product can be tried without documents |
+| `app/server.py` | 333 | Routing, ephemeral sessions. No logic |
+| `app/cssmin.py` | 98 | Stylesheet minification at import — comments kept in source |
+| `core/reconcile.py` | 698 | **The solver.** Contradiction detection |
 | `core/entity.py` | 251 | Employer entity resolution |
-| `core/parsers.py` | 444 | Document parsers + arithmetic verifier |
+| `core/parsers.py` | 652 | Document parsers + arithmetic verifier |
 | `core/gate.py` | 297 | Evidence ledger + claim gate |
-| `core/orphan.py` | 392 | Orphan assessment + recovery planning |
-| `tools/schema_probe.py` | 234 | Privacy-safe probe for real documents |
-| `tests/test_names.py` | 170 | Name-matching and model-contract tests |
+| `core/orphan.py` | 394 | Orphan assessment + recovery planning |
+| `core/epfo_rules.py` | 410 | The EPFO 3.0 rules a member is judged against, as of 2026 |
+
+7,349 lines across the 15 modules above. Outside them: `tools/` (328 lines, including `schema_probe.py` at 234 — a privacy-safe probe for real documents) and `tests/` (1,816).
 
 **Note on layout.** `core/` holds the reasoning modules; `app/` holds ingestion, orchestration and the web layer. Each `core/` module carries its own self-test in `main()`, so `python core/reconcile.py` runs that module's suite. The code that ships is literally the code the tests exercise — there is no parallel "production" copy that can drift.
 
@@ -164,7 +168,7 @@ Server-rendered HTML from plain Python functions. No template engine, no client 
 
 This is a direct response to the brief's requirement to design for *"mobile devices, slower connections or limited digital experience"* — and it is demonstrable on stage by disabling JavaScript.
 
-- Every page **under 11 KB**
+- Every page **under 6 KB**
 - Works with **JS disabled**, readable with **CSS disabled**
 - System font stack — nothing downloads before text renders
 - **Engine vocabulary never reaches the screen.** `_finding_copy()` is the single translation point
