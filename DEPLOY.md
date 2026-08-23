@@ -44,7 +44,37 @@ export OPENAI_API_KEY=sk-...        # optional; omit to run offline
 
 Region defaults to `asia-south1` (Mumbai). Override with `REGION=` or `SERVICE=`.
 
-The script prints the public URL and curls `/healthz` to confirm it is live.
+The script prints the public URL and curls `/status` to confirm it is live.
+(`/healthz` is intercepted by Cloud Run's proxy and never reaches the container,
+which is why `/status` is the real endpoint. `/healthz` is kept for other hosts.)
+
+## Continuous deployment
+
+`.github/workflows/deploy.yml` runs all nine suites plus the solver and model
+self-tests on every push and pull request, and deploys to Cloud Run only when a
+push to `main` is green. The deploy step calls `deploy-cloudrun.sh`, so a local
+deploy and a CI deploy cannot drift apart.
+
+Two properties worth knowing:
+
+- **A failed `/status` rolls back.** The workflow records the serving revision
+  before deploying and returns traffic to it if the new revision does not answer
+  `/status` with 200. The demo link is the deliverable; a red build must not be
+  able to take it down.
+- **Pull requests never deploy.** The deploy job is gated on the event being a
+  push to `main`, so a fork's pull request runs tests and never sees
+  credentials.
+
+One-time setup, which creates no service-account key:
+
+```bash
+bash .github/gcp-setup.sh
+```
+
+It creates a repo-scoped deploy service account, restricts the Workload Identity
+provider to this repository, and sets the three GitHub secrets the workflow
+reads (`GCP_PROJECT`, `GCP_DEPLOY_SA`, `GCP_WIF_PROVIDER`). Run it before the
+first push, or the deploy job will fail at authentication.
 
 ### Session model — why `--max-instances=1`
 

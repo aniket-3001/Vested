@@ -1,0 +1,7 @@
+# Test-only dependencies. Not installed in the deployed image.
+#
+# PyMuPDF builds the PDF fixtures the ingest and passbook suites read. It is a
+# test dependency rather than a runtime one: the app reads PDFs with
+# pdfplumber and never writes them.
+-r requirements.txt
+PyMuPDF==1.27.2
