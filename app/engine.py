@@ -314,6 +314,9 @@ class Account:
     pension: float
     blocking: int          # defects on this account that stop a claim
     orphan: bool = False
+    # Month by month, as the passbook prints it. Empty for an orphan, which by
+    # definition has no passbook of its own.
+    rows: list = field(default_factory=list)
 
 
 @dataclass
@@ -939,6 +942,7 @@ def analyse(
             balance=pb.get("balance", 0.0),
             pension=pb.get("pension", 0.0),
             blocking=blocking_by_emp.get(key, 0),
+            rows=list(pb.get("rows") or []),
         ))
     for o in a.orphans:
         if o.assessment.verdict != "LIKELY":

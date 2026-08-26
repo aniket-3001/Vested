@@ -280,14 +280,18 @@ input:disabled{background:#f4f6f6;color:var(--mute)}
 
 /* gate list */
 .gt{list-style:none;margin:0;padding:0}
-.gt li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);
-  font-size:15px;align-items:flex-start}
+.gt li{display:grid;grid-template-columns:1fr auto;gap:4px 14px;
+  padding:11px 0 11px 13px;border-bottom:1px solid var(--line);
+  font-size:15px;align-items:baseline;border-left:3px solid transparent}
 .gt li:last-child{border-bottom:0}
-.gt .m{color:var(--mute);font-size:13px;display:block;margin-top:2px}
-.gt .i{flex-shrink:0;width:19px;font-weight:700}
-.gt .i.ok{color:var(--green)}
-.gt .i.no{color:var(--red)}
-.gt .i.un{color:var(--mute)}
+.gt li.ok{border-left-color:var(--green)}
+.gt li.no{border-left-color:var(--red)}
+.gt li.un{border-left-color:var(--line)}
+.gt li.hm{border-left-color:var(--amber)}
+.gt .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:12px;color:var(--mute);letter-spacing:.04em;margin-right:8px}
+.gt .m{color:var(--mute);font-size:13.5px;grid-column:1/-1;margin:0;
+  line-height:1.5}
 
 /* Hindi beside English on findings */
 .hi{display:block;font-size:14px;color:var(--mute);margin-top:3px;line-height:1.5}
@@ -362,9 +366,24 @@ def pill(text: str, tone: str = "nu2") -> str:
     return f'<span class="p {tone}">{esc(text)}</span>'
 
 
-OK = pill("✓ Approved", "ok")
-NO = pill("✗ Not Verified", "no")
-UNKNOWN = pill("Not known", "nu2")
+OK = pill("Approved", "ok")
+NO = pill("Not verified", "no")
+UNKNOWN = pill("Not visible to us", "nu2")
+
+
+# Status shown as a word in a coloured chip, with a thin rule down the left of
+# the row carrying the same meaning for anyone who cannot see the colour.
+STATUS = {
+    "pass": ("Pass", "ok"),
+    "fail": ("Action needed", "no"),
+    "unknown": ("Not visible", "nu2"),
+    "advisory": ("Worth doing", "hm"),
+}
+
+
+def status_chip(kind: str) -> str:
+    word, tone = STATUS.get(kind, ("Checked", "nu2"))
+    return pill(word, tone)
 
 
 def alert(body: str, tone: str = "b") -> str:

@@ -91,7 +91,7 @@ def main() -> int:
         ("each gate shows its code", "G01" in ck and "G14" in ck),
         ("a failing gate offers the page that fixes it", "fix this</a>" in ck),
         ("what EPFO holds privately is disclosed, not guessed",
-         "not visible" in ck and "do not guess" in ck),
+         "not visible" in ck.lower() and "rather than guessing" in ck),
         ("a defective record fails at least one gate",
          solver.gate_summary(solver.gates(bad_a))[1] >= 1),
         ("a clean record fails none",
@@ -112,7 +112,7 @@ def main() -> int:
          (orphan_gate.status == "fail") == has_orphan),
         ("an unlinked account does not read as a refusal",
          orphan_gate.advisory is True),
-        ("and the check page says so", "does not block settlement" in ck),
+        ("and the check page says so", "Does not block settlement" in ck),
         ("the home verdict counts only blocking failures",
          f"{len(solver.blocking_failures(gg))} of {len(gg)} checks fail"
          in get("/home", BAD)),
@@ -178,8 +178,10 @@ def main() -> int:
         ("it says how long the whole thing takes", f"{p.critical_days} days" in co),
         ("it warns that order matters", "Order matters" in co),
         ("it names what a blocked step is waiting for", "Blocked until step" in co),
-        ("it quantifies the cost of the wrong order",
-         f"{p.wasted_days} days wasted" in co),
+        ("the cost of the wrong order is stated where the warning is",
+         f"costs {p.blocked_steps[0].days} days" in co),
+        ("timing answers when it ends, not how clever the plan is",
+         "All clear by" in co and "days wasted" not in co),
         ("a clean record is not given busywork",
          "Nothing to correct" in get("/corrections", GOOD)),
         ("an unchecked record gets no plan",
@@ -200,6 +202,48 @@ def main() -> int:
          "No rejected claims" in get("/why-rejected", GOOD)),
         ("the old tracker links to the diagnosis",
          "/why-rejected?s=" in get("/track-old", BAD)),
+    ]
+
+    # ---- pages must read fields that exist --------------------------------
+    # Three pages read attributes that were never on the object - KycItem.value,
+    # Account.entries - so they rendered a literal "&mdash;" or claimed there
+    # were no contributions on a record holding fifteen months of them. Nothing
+    # failed loudly, which is what made it survive.
+    pb = get("/passbook", BAD)
+    pbl = get("/passbook-lite", BAD)
+    acc = next(x for x in bad_a.accounts if not x.orphan)
+    checks += [
+        ("contribution rows reach the Account", len(acc.rows) > 0),
+        ("the full passbook shows them", "Wage Month" in pb),
+        ("with real amounts, not blanks", "&#8377;" in pb),
+        ("passbook lite shows five at most",
+         pbl.count("<tr>") <= 6),  # header + 5
+        ("and it is not empty on a record with contributions",
+         "No contributions" not in pbl),
+        ("balances are totalled across accounts",
+         "Across all accounts" in pb),
+        # The defect is visible on this page, so it is named here too.
+        ("a contradicted exit date is flagged on the passbook",
+         "Contributions continue past this date" in pb),
+        ("a clean record is not flagged",
+         "Contributions continue past this date" not in get("/passbook", GOOD)),
+        ("no page renders a double-escaped entity",
+         not any("&amp;mdash;" in get(x, BAD)
+                 for x in ("/kyc", "/passbook", "/contact", "/profile"))),
+    ]
+
+    # ---- status reads as words, not punctuation --------------------------
+    # A tick, a cross and a bare question mark are checklist vocabulary. This
+    # is a document about somebody's money.
+    checks += [
+        ("claim check labels status in words",
+         "Action needed" in ck and "Not visible" in ck and "Pass" in ck),
+        ("no raw glyphs are used as status", "&#10003;" not in ck
+         and "&#10007;" not in ck),
+        ("the advisory item is labelled differently from a blocker",
+         "Worth doing" in ck),
+        ("KYC uses the same vocabulary",
+         "Not visible" in get("/kyc", BAD)),
     ]
 
     # ---- Mark Exit --------------------------------------------------------
@@ -292,7 +336,9 @@ def main() -> int:
     ky = get("/kyc", BAD)
     checks += [
         ("KYC does not vouch for what it cannot see",
-         "held" in ky.lower() and "unknown" in ky.lower()),
+         "Not visible" in ky and "cannot see your bank KYC" in ky),
+        ("and it shows the note rather than an empty dash",
+         "&amp;mdash;" not in ky and "character for character" in ky),
         ("a name spelled four ways closes the gate", not bad_a.kyc_ok),
         ("a consistently spelled name opens it", good_a.kyc_ok),
     ]
@@ -369,7 +415,9 @@ def main() -> int:
          "Verified" not in cpage),
         ("nothing implies EPFO received it",
          "EPFO. We do not submit anything for you." in cpage),
-        ("all four checks are shown", cpage.count('class="i ok"') == 4),
+        ("all four checks are shown",
+         len(re.findall(r'<ul class="gt">(.*?)</ul>', cpage, re.S)[0]
+             .split("<li")) - 1 == 4),
         ("it names where the member files it themselves",
          "Manage &rarr; Joint Declaration" in cpage),
         ("it quotes EPFO's limit as EPFO's", "published limit" in cpage),

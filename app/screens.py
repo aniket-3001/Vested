@@ -21,7 +21,7 @@ _s.path.insert(0, str(_p.Path(__file__).resolve().parent.parent))
 from datetime import date, timedelta
 
 from app.portal import (MENUS, OK, NO, UNKNOWN, alert, bare, card, esc, kv,
-                        pill, rs, shell, table)
+                        pill, rs, shell, status_chip, table)
 from app import solver
 from core.epfo_rules import AUTO_SETTLE_CEILING, settlement_verdict
 
@@ -284,9 +284,7 @@ def page_home(a, token="sample"):
 # Claim check - the validator twin
 # ---------------------------------------------------------------------------
 
-MARK = {"pass": ('<span class="i ok">&#10003;</span>', ""),
-        "fail": ('<span class="i no">&#10007;</span>', ""),
-        "unknown": ('<span class="i un">?</span>', "")}
+ROW_TONE = {"pass": "ok", "fail": "no", "unknown": "un"}
 
 
 def page_check(a, token="sample"):
@@ -294,25 +292,32 @@ def page_check(a, token="sample"):
     ok, fail, unk = solver.gate_summary(g)
     items = ""
     for x in g:
-        icon = MARK[x.status][0]
+        kind = "advisory" if (x.status == "fail" and x.advisory) else x.status
+        tone = "hm" if kind == "advisory" else ROW_TONE[x.status]
         bits = []
         if x.detail:
             bits.append(esc(x.detail))
         if x.href and x.status == "fail":
-            bits.append(f'<a href="{x.href}?s={esc(token)}">fix this</a>')
-        if x.status == "fail" and x.advisory:
-            bits.append("does not block settlement")
-        link = ""
-
+            bits.append(f'<a href="{x.href}?s={esc(token)}">How to fix this</a>')
+        if kind == "advisory":
+            bits.append("Does not block settlement")
         det = (f'<span class="m">{" &middot; ".join(bits)}</span>'
                if bits else "")
-        items += (f"<li>{icon}<span><strong>{esc(x.code)}</strong> "
-                  f"{esc(x.name)}{det}</span></li>")
-    head = alert(f"<h2>{ok} pass &middot; {fail} fail &middot; {unk} not visible</h2>",
-                 "r" if fail else "g")
-    note = ('<p class="sub" style="margin-top:12px">Items marked <strong>?</strong> '
-            "are held inside EPFO and are not in any document you can download. "
-            "We do not guess them.</p>")
+        items += (f'<li class="{tone}">'
+                  f'<span><span class="code">{esc(x.code)}</span>'
+                  f"{esc(x.name)}</span>{status_chip(kind)}{det}</li>")
+    blocking = len(solver.blocking_failures(g))
+    advisory = len(solver.advisory_failures(g))
+    counts = [f"<strong>{ok}</strong> pass"]
+    if blocking:
+        counts.append(f"<strong>{blocking}</strong> need action")
+    if advisory:
+        counts.append(f"<strong>{advisory}</strong> worth doing")
+    counts.append(f"<strong>{unk}</strong> not visible to us")
+    head = alert(f"<h2>{', '.join(counts)}</h2>", "r" if blocking else "g")
+    note = ('<p class="sub" style="margin-top:14px">Anything marked '
+            "<em>not visible</em> is held inside EPFO and is in no document you "
+            "can download. We report those rather than guessing at them.</p>")
     return page(a, token, "/check", "Claim Check",
                 head + card("Pre-settlement checks",
                             f'<ul class="gt">{items}</ul>{note}'),
@@ -350,8 +355,9 @@ def page_corrections(a, token="sample"):
         word, href = ROUTE_WORD.get(s.route, (s.route, "/corrections"))
         dep = ""
         if s.deps:
+            noun = "step" if len(s.deps) == 1 else "steps"
             verb = "completes" if len(s.deps) == 1 else "complete"
-            dep = (f'<span class="par">Blocked until step '
+            dep = (f'<span class="par">Blocked until {noun} '
                    f'{" and ".join(str(d) for d in s.deps)} {verb}</span>')
         items += (f"<li><b>{esc(s.title)}</b>"
                   f'<span class="m">{esc(s.detail)}</span>'
@@ -378,17 +384,24 @@ def page_corrections(a, token="sample"):
                         table(["Reference", "Establishment", "New date",
                                "Status"], rows) + cta)
 
-    summary = kv([
-        ("Steps", str(len(p.steps))),
-        ("If done in this order", f"<strong>about {p.critical_days} days</strong>"),
-        ("If filed in the wrong order",
-         f'<span style="color:#d63b30">{p.wasted_days} days wasted</span>'),
-    ])
+    done_by = date.fromordinal(TODAY.toordinal() + p.critical_days)
+    now = [x for x in p.steps if not x.deps
+           and "Self-service" in (x.route or "")]
+    summary_rows = [("Start today",
+                     esc(now[0].title) if now else "Step 1"),
+                    ("All clear by", f"<strong>{_d(done_by)}</strong>"
+                                     f" &middot; about {p.critical_days} days")]
+    summary = kv(summary_rows)
+
     warn = ""
     if p.blocked_steps:
-        n = p.blocked_steps[0].n
-        warn = alert(f"<h2>Order matters</h2><p>Step {n} will be rejected if you "
-                     f"file it before the steps above are complete.</p>", "a")
+        b = p.blocked_steps[0]
+        deps = " and ".join(str(d) for d in b.deps)
+        plural = "s" if len(b.deps) > 1 else ""
+        warn = alert(f"<h2>Order matters</h2>"
+                     f"<p>Step {b.n} is rejected if you file it before step"
+                     f"{plural} {deps} complete &mdash; and the cycle costs "
+                     f"{b.days} days either way.</p>", "a")
     return page(a, token, "/corrections", "Corrections",
                 warn + inflight
                 + card("Repair plan", f'<ol class="stp">{items}</ol>')
@@ -452,7 +465,8 @@ def page_profile(a, token="sample"):
     m, u = _who(a)
     rows = [("UAN", esc(u) or "&mdash;"), ("Name", esc(m)),
             ("Date of Birth", _d(ident.get("dob"))),
-            ("PAN", esc(ident.get("pan") or "&mdash;"))]
+            ("PAN", esc(ident["pan"]) if ident.get("pan")
+             else '<span class="sub">Not found in your documents</span>')]
     body = card("Member Details", kv(rows))
     spellings = getattr(nc, "spellings", None) if nc is not None else None
     if spellings:
@@ -482,17 +496,28 @@ def page_uan_card(a, token="sample"):
                 crumb="View / UAN Card")
 
 
+def _mon(d) -> str:
+    """A wage month the way a passbook prints it."""
+    return d.strftime("%b-%Y").upper() if d else "&mdash;"
+
+
 def page_passbook_lite(a, token="sample"):
-    rows = []
-    for acc in getattr(a, "accounts", [])[:1]:
-        for e in list(getattr(acc, "entries", []) or [])[-5:]:
-            rows.append([esc(getattr(e, "month", "")), rs(getattr(e, "employee", 0)),
-                         rs(getattr(e, "employer", 0)), rs(getattr(e, "pension", 0)),
-                         f"<code>{esc(acc.member_id)}</code>"])
+    """The real portal shows the last five contributions and nothing else."""
+    everything = []
+    for acc in getattr(a, "accounts", []):
+        for r in (acc.rows or []):
+            everything.append((r["month"], acc.member_id, r))
+    everything.sort(key=lambda x: x[0], reverse=True)
+    rows = [[_mon(m), rs(r.get("employee", 0)), rs(r.get("employer", 0)),
+             rs(r.get("pension", 0)), f"<code>{esc(mid)}</code>"]
+            for m, mid, r in everything[:5]]
     body = (table(["Wage Month", "Employee", "Employer", "Pension", "Member ID"], rows)
-            if rows else '<p class="sub">No contributions to show.</p>')
+            if rows else '<p class="sub">No contributions in the documents supplied.</p>')
+    more = (f'<p style="margin-top:12px"><a href="/passbook?s={esc(token)}">'
+            "Full passbook &rarr;</a></p>" if rows else "")
     return page(a, token, "/passbook-lite", "Passbook Lite",
-                card("Last Five Contributions", body), crumb="View / Passbook Lite")
+                card("Last Five Contributions", body + more),
+                crumb="View / Passbook Lite")
 
 
 def page_passbook(a, token="sample"):
@@ -500,16 +525,45 @@ def page_passbook(a, token="sample"):
     for acc in getattr(a, "accounts", []):
         if acc.orphan:
             continue
-        rows = [[esc(getattr(e, "month", "")), rs(getattr(e, "employee", 0)),
-                 rs(getattr(e, "employer", 0)), rs(getattr(e, "pension", 0))]
-                for e in (getattr(acc, "entries", []) or [])]
-        body += card(f"{acc.employer} · {acc.member_id}",
-                     kv([("Balance", rs(acc.balance)), ("Pension", rs(acc.pension)),
-                         ("Months", str(acc.months))])
-                     + (table(["Month", "Employee", "Employer", "Pension"], rows)
-                        if rows else ""))
-    return page(a, token, "/passbook", "Passbook",
-                body or alert("<h2>No passbook loaded</h2>", "b"),
+        rows = [[_mon(r["month"]), rs(r.get("employee", 0)),
+                 rs(r.get("employer", 0)), rs(r.get("pension", 0))]
+                for r in (acc.rows or [])]
+        # The contradiction is visible right here - the period ends before the
+        # contributions do - so say it where the member is already looking
+        # rather than making them find the timeline.
+        last = max((r["month"] for r in (acc.rows or [])), default=None)
+        flag = ""
+        if last and acc.doe and last > acc.doe:
+            flag = (" " + pill("Contributions continue past this date", "no"))
+        elif last and not acc.doe:
+            flag = " " + pill("No exit date recorded", "hm")
+        head = kv([("Member ID", f"<code>{esc(acc.member_id)}</code>"),
+                   ("Period", f"{_d(acc.doj)} to {_d(acc.doe)}{flag}"),
+                   ("Employee + employer share", rs(acc.balance)),
+                   ("Pension share", rs(acc.pension)),
+                   ("Months contributed", str(acc.months))])
+        if flag:
+            head += (f'<p class="sub" style="margin-top:10px">'
+                     f'<a href="/timeline?s={esc(token)}">See this on the '
+                     f"timeline &rarr;</a></p>")
+        detail = (table(["Wage Month", "Employee", "Employer", "Pension"], rows)
+                  if rows else
+                  '<p class="sub">This account is in your service record, but no '
+                  "passbook for it was supplied.</p>")
+        body += card(acc.employer, head + '<div style="margin-top:14px">'
+                     + detail + "</div>")
+    if not body:
+        return page(a, token, "/passbook", "Passbook",
+                    alert("<h2>No passbook supplied</h2>"
+                          "<p>Download it from passbook.epfindia.gov.in and add "
+                          "it to see contributions and balances.</p>", "b"),
+                    crumb="View / Passbook")
+    total = card("Across all accounts",
+                 kv([("Total balance", rs(getattr(a, "total_balance", 0.0))),
+                     ("Total pension", rs(getattr(a, "total_pension", 0.0))),
+                     ("Eligible service", f"{getattr(a, 'service_months', 0)} months")]),
+                 quiet=True)
+    return page(a, token, "/passbook", "Passbook", body + total,
                 crumb="View / Passbook")
 
 
@@ -517,27 +571,47 @@ def page_passbook(a, token="sample"):
 # Manage
 # ---------------------------------------------------------------------------
 
+KYC_TONE = {"ok": "ok", "risk": "no", "unknown": "un"}
+KYC_KIND = {"ok": "pass", "risk": "fail", "unknown": "unknown"}
+
+
 def page_kyc(a, token="sample"):
     items = getattr(a, "kyc_items", []) or []
-    rows = []
+    rows = ""
     for i in items:
-        badge = {"ok": OK, "risk": NO, "unknown": UNKNOWN}.get(i.status, UNKNOWN)
-        rows.append([esc(i.label), esc(getattr(i, "value", "") or "&mdash;"), badge])
+        rows += (f'<li class="{KYC_TONE.get(i.status, "un")}">'
+                 f"<span>{esc(i.label)}</span>"
+                 f"{status_chip(KYC_KIND.get(i.status, 'unknown'))}"
+                 f'<span class="m">{esc(i.note)}</span></li>')
+    risky = sum(1 for i in items if i.status == "risk")
+    head = (alert(f"<h2>{risky} item needs attention</h2>"
+                  if risky == 1 else f"<h2>{risky} items need attention</h2>", "r")
+            if risky else
+            alert("<h2>Nothing we can see is wrong</h2>"
+                  "<p>Some items are held inside EPFO and are not in any "
+                  "document you can download.</p>", "g"))
     return page(a, token, "/kyc", "KYC",
-                card("Currently Active KYC",
-                     table(["Document Type", "Name as per Document", "Status"], rows))
-                + card("Not visible to us",
-                       '<p class="sub">Bank verification and Aadhaar linkage are held '
-                       "inside EPFO. We report them as unknown rather than guess.</p>",
+                head + card("Currently Active KYC", f'<ul class="gt">{rows}</ul>')
+                + card("Why this matters",
+                       kv([("Auto-settlement", "Needs KYC to read Approved"),
+                           ("UPI and ATM withdrawal", "Needs KYC to read Approved"),
+                           ("Bank name match",
+                            "Must match your UAN name character for character")]),
                        quiet=True),
                 crumb="Manage / KYC")
 
 
 def page_contact(a, token="sample"):
     return page(a, token, "/contact", "Contact Details",
-                card("Aadhaar Linked Mobile Number",
-                     kv([("Registered Mobile", "&mdash; " + NO),
-                         ("Registered Email", "&mdash; " + NO)]))
+                alert("<h2>We cannot see your contact details</h2>"
+                      "<p>Your registered mobile and email are held inside EPFO "
+                      "and appear in no document you can download. Check them on "
+                      "the UAN portal.</p>", "b")
+                + card("Why it matters",
+                       kv([("Must be", "The mobile linked to your Aadhaar"),
+                           ("Used for", "Every OTP EPFO sends you"),
+                           ("If the number is dead",
+                            "Update it at a UIDAI centre first, not with EPFO")]))
                 + card("What an unverified number blocks",
                        table(["Service", "Needs OTP"],
                              [["Auto-settlement", "Yes"], ["UPI withdrawal", "Yes"],
@@ -1137,8 +1211,7 @@ def _corrections(a) -> list:
     return getattr(a, "corrections", None) or []
 
 
-CHECK_MARK = {True: '<span class="i ok">&#10003;</span>',
-              False: '<span class="i no">&#10007;</span>'}
+
 
 
 def page_correction(a, token="sample", ref=""):
@@ -1172,8 +1245,10 @@ def page_correction(a, token="sample", ref=""):
 
     items = ""
     for x in c.checks:
-        items += (f"<li>{CHECK_MARK[x.ok]}<span><strong>{esc(x.name)}</strong>"
-                  f'<span class="m">{esc(x.detail)}</span></span></li>')
+        items += (f'<li class="{"ok" if x.ok else "no"}">'
+                  f"<span>{esc(x.name)}</span>"
+                  f'{status_chip("pass" if x.ok else "fail")}'
+                  f'<span class="m">{esc(x.detail)}</span></li>')
     checked = card("What we checked",
                    f'<ul class="gt">{items}</ul>'
                    '<p class="sub" style="margin-top:12px">We check the '
