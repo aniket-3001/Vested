@@ -293,6 +293,21 @@ input:disabled{background:#f4f6f6;color:var(--mute)}
 .gt .m{color:var(--mute);font-size:13.5px;grid-column:1/-1;margin:0;
   line-height:1.5}
 
+/* sign-in: one card per test account, each a button that works */
+.accts{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  margin-bottom:16px}
+.acct{background:var(--paper);border:1px solid var(--line);border-radius:4px;
+  padding:18px;display:flex;flex-direction:column;gap:10px;margin:0}
+.acct h2{font-size:17px;color:var(--teal-d);margin:0;background:none;padding:0}
+.acct h2::before{content:none}
+.acct .blurb{font-size:14px;color:var(--mute);margin:0;flex:1}
+.cred{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin:0;
+  background:#f7faf9;border:1px solid var(--line);border-radius:3px;padding:9px 12px}
+.cred dt{font-size:12px;color:var(--mute)}
+.cred dd{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:14px;font-weight:600;color:var(--ink)}
+.acct .btn{text-align:center}
+
 /* Hindi beside English on findings */
 .hi{display:block;font-size:14px;color:var(--mute);margin-top:3px;line-height:1.5}
 

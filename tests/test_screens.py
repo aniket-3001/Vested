@@ -538,6 +538,53 @@ def main() -> int:
          not _dev(get("/home", BAD).split("<main>")[0])),
     ]
 
+    # ---- sign-in must be usable, not merely correct -----------------------
+    # The credentials were on the page all along, in a grey card below the
+    # form. Technically printed; practically invisible to someone who lands on
+    # a login screen and does not scroll.
+    lb2 = c.get("/login").get_data(as_text=True)
+    checks += [
+        ("each account has a button that signs you in",
+         lb2.count("Sign in as") == 2),
+        ("the credentials are still readable",
+         "rahul" in lb2 and "priya" in lb2),
+        ("one click actually works",
+         c.post("/login", data={"uan": BAD, "password": "rahul"}).status_code
+         == 303),
+        ("typing them still works too", 'id="password"' in lb2),
+        ("and the accounts are described, not just listed",
+         "wrong exit date" in lb2),
+    ]
+
+    # ---- the two money questions -----------------------------------------
+    from core import money as M
+    cl = get("/claim", GOOD)
+    tenD = get("/claim-10d", BAD)
+    checks += [
+        ("the claim page answers what you would receive",
+         "If you withdrew all of it today" in cl),
+        ("it shows the deduction, not just the balance",
+         "Tax deducted" in cl),
+        ("it explains why that rate applies", "section 192A" in cl),
+        ("it says what linking a PAN is worth", "Linking it drops" in cl),
+        ("and offers waiting as the alternative", "removes the deduction" in cl),
+        ("it is labelled an estimate",
+         "EPFO calculates the final figure" in cl),
+        ("the pension page gives a figure, not a status",
+         "a month" in tenD),
+        ("it counts the shortfall in months", "105 months" in tenD),
+        ("it shows what full service would pay",
+         "Worth at ten years" in tenD),
+        ("it offers Form 10C under ten years", "10C" in tenD),
+        ("it admits service elsewhere counts too",
+         "floor rather than a ceiling" in tenD),
+        # The arithmetic itself is owned by core/money.py's self-test; what
+        # matters here is that the page shows the number it computed.
+        ("the page shows the figure the module computed",
+         f"{M.pension_estimate(bad_a.service_months).at_full_service:,.0f}"
+         .replace(",", "") in tenD.replace(",", "")),
+    ]
+
     # ---- PMVBRY, faithfully unhelpful -------------------------------------
     checks.append(("PMVBRY refuses you exactly as the real one does",
                    "not authorized to access" in get("/pmvbry", BAD)))

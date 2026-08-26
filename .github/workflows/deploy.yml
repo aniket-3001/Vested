@@ -71,7 +71,7 @@ jobs:
       - name: Module self-tests
         run: |
           fail=0
-          for f in app/cssmin.py app/corrections.py app/demo.py app/models.py app/solver.py                    core/entity.py core/epfo_rules.py core/orphan.py                    core/parsers.py core/reconcile.py; do
+          for f in app/cssmin.py app/corrections.py app/demo.py app/models.py app/solver.py                    core/entity.py core/epfo_rules.py core/money.py core/orphan.py                    core/parsers.py core/reconcile.py; do
             echo "::group::$f"
             if python "$f"; then
               echo "$f OK"

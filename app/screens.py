@@ -23,6 +23,7 @@ from datetime import date, timedelta
 from app.portal import (MENUS, OK, NO, UNKNOWN, alert, bare, card, esc, kv,
                         pill, rs, shell, status_chip, table)
 from app import solver
+from core import money
 from core.epfo_rules import AUTO_SETTLE_CEILING, settlement_verdict
 
 from app.engine import TODAY  # one source of truth for "now"
@@ -686,21 +687,67 @@ def page_claim(a, token="sample"):
     if not fail and getattr(a, "dates_checked", False):
         limits += [("By UPI", rs(bal * 0.75) + " &mdash; 75%"),
                    ("By ATM", rs(bal * 0.50) + " &mdash; 50%")]
+
+    # The portal shows a balance and leaves the tax to you. This is the
+    # question a member is actually asking when they look at it.
+    ident = getattr(a, "identity", {}) or {}
+    w = money.withdrawal_estimate(bal, getattr(a, "service_months", 0),
+                                  bool(ident.get("pan")))
+    if w.taxed:
+        money_rows = [("Balance", rs(w.balance)),
+                      (f"Tax deducted at {w.tds_rate:.0%}",
+                       f'<span style="color:var(--red)">&minus; '
+                       f"{rs(w.tds_amount)}</span>"),
+                      ("You would receive", f"<strong>{rs(w.net)}</strong>")]
+    else:
+        money_rows = [("Balance", rs(w.balance)),
+                      ("Tax deducted", "None"),
+                      ("You would receive", f"<strong>{rs(w.net)}</strong>")]
+    why = "".join(f"<li>{esc(r)}</li>" for r in w.reasons)
+    estimate = card("If you withdrew all of it today",
+                    kv(money_rows)
+                    + f'<ul class="rz" style="margin-top:14px">{why}</ul>'
+                    + '<p class="sub" style="margin-top:10px">An estimate from '
+                      "the balance in your passbook and the rules under section "
+                      "192A. EPFO calculates the final figure.</p>")
+
     return page(a, token, "/claim", "Claim (Form 31, 19 & 10C)",
-                top + card("Claim forms", forms)
+                top + card("Claim forms", forms) + estimate
                 + card("Limits", kv(limits), quiet=True),
                 crumb="Online Services / Claim")
 
 
 def page_claim_10d(a, token="sample"):
     months = getattr(a, "service_months", 0)
-    eligible = getattr(a, "pension_eligible", False)
+    p = money.pension_estimate(months)
+
+    if p.eligible:
+        head = alert(f"<h2>About {rs(p.monthly)} a month</h2>"
+                     f"<p>From age {money.PENSION_AGE}.</p>", "g")
+        rows = [("Eligible service", f"{months} months"),
+                ("Estimated monthly pension",
+                 f"<strong>{rs(p.monthly)}</strong>")]
+    else:
+        yrs = p.months_short / 12
+        head = alert(f"<h2>{p.months_short} months short</h2>"
+                     f"<p>About {yrs:.1f} more years of contributions and a "
+                     f"pension of around {rs(p.at_full_service)} a month "
+                     f"begins at {money.PENSION_AGE}.</p>", "b")
+        rows = [("Eligible service", f"{months} months"),
+                ("Needed", f"{money.PENSION_MIN_MONTHS} months"),
+                ("Still to go", f"<strong>{p.months_short} months</strong>"),
+                ("Worth at ten years", rs(p.at_full_service) + " a month")]
+
+    why = "".join(f"<li>{esc(r)}</li>" for r in p.reasons)
     return page(a, token, "/claim-10d", "Claim (Form 10-D)",
-                card("Monthly pension", kv([
-                    ("Eligible service", f"{months} months"),
-                    ("Needed", "120 months"),
-                    ("Status", pill("Eligible", "ok") if eligible
-                     else pill("Not yet eligible", "hm"))])),
+                head
+                + card("Monthly pension", kv(rows)
+                       + f'<ul class="rz" style="margin-top:14px">{why}</ul>')
+                + card("How this is worked out",
+                       '<p class="sub">Service counted here is what your '
+                       "contribution records show. Time at an employer whose "
+                       "records we have not seen counts too, so treat this as "
+                       "a floor rather than a ceiling.</p>", quiet=True),
                 crumb="Online Services / Claim (Form 10-D)")
 
 
@@ -802,29 +849,53 @@ def page_pmvbry(a, token="sample", href="/pmvbry"):
 # product behind a submit button.
 
 def page_login(error: str = ""):
+    """
+    Sign in. The credentials are printed here on purpose - there is nothing
+    behind them but synthetic data.
+
+    They used to sit in a grey card below the form, which is technically
+    "printed on the page" and practically invisible: somebody evaluating this
+    lands on a login form, does not scroll, and never gets in. So each account
+    is now a card with a button that signs you in directly. The password is
+    still shown for anyone who would rather type it.
+    """
     from app.demo import ACCOUNTS
-    rows = []
-    for uan, acc in ACCOUNTS.items():
-        rows.append([f"<code>{esc(uan)}</code>", f"<code>{esc(acc['password'])}</code>",
-                     esc(acc["blurb"])])
     err = alert(f"<h2>{esc(error)}</h2>", "r") if error else ""
-    form = ('<form method="post" action="/login">'
-            '<div class="row">'
-            '<div class="fr"><label for="uan">UAN</label>'
-            '<input type="text" id="uan" name="uan" required></div>'
-            '<div class="fr"><label for="password">Password</label>'
-            '<input type="password" id="password" name="password" required></div>'
-            '<div class="fr" style="flex:0 0 auto">'
-            '<button class="btn" type="submit">Sign in</button></div>'
-            "</div></form>")
+
+    cards = ""
+    for uan, acc in ACCOUNTS.items():
+        cards += (
+            f'<form class="acct" method="post" action="/login">'
+            f'<input type="hidden" name="uan" value="{esc(uan)}">'
+            f'<input type="hidden" name="password" value="{esc(acc["password"])}">'
+            f'<h2>{esc(acc["name"])}</h2>'
+            f'<p class="blurb">{esc(acc["blurb"])}</p>'
+            f'<dl class="cred"><dt>UAN</dt><dd>{esc(uan)}</dd>'
+            f'<dt>Password</dt><dd>{esc(acc["password"])}</dd></dl>'
+            f'<button class="btn" type="submit">'
+            f'Sign in as {esc(acc["name"].split()[0])}</button>'
+            f"</form>")
+
+    manual = (
+        '<form method="post" action="/login"><div class="row">'
+        '<div class="fr"><label for="uan">UAN</label>'
+        '<input type="text" id="uan" name="uan" required></div>'
+        '<div class="fr"><label for="password">Password</label>'
+        '<input type="password" id="password" name="password" required></div>'
+        '<div class="fr" style="flex:0 0 auto">'
+        '<button class="btn o" type="submit">Sign in</button></div>'
+        "</div></form>")
+
     return bare("Sign in",
-                '<div class="ttl"><h1>Member Sign In</h1></div>'
-                + err + card("Sign in", form)
-                + card("Test accounts",
-                       table(["UAN", "Password", "Record"], rows), quiet=True)
+                '<div class="ttl"><h1>Member Sign In</h1>'
+                '<span class="sub">Two test accounts &middot; synthetic data'
+                "</span></div>"
+                + err
+                + f'<div class="accts">{cards}</div>'
+                + card("Or type the credentials yourself", manual, quiet=True)
                 + card("Use your own documents",
-                       f'<p><a class="btn o" href="/upload">Check your own record</a></p>',
-                       quiet=True))
+                       '<p><a class="btn o" href="/upload">Check your own '
+                       "record</a></p>", quiet=True))
 
 
 def page_privacy(a=None, token="sample"):
