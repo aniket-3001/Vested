@@ -60,11 +60,23 @@ jobs:
           done
           exit $fail
 
-      - name: Solver self-test
-        run: python core/reconcile.py
-
-      - name: Model backend self-test
-        run: python app/models.py
+      # Several modules carry their own self-test and are not under tests/.
+      # Listing them explicitly rather than globbing keeps a module that loses
+      # its self-test from silently dropping out of CI.
+      - name: Module self-tests
+        run: |
+          fail=0
+          for f in app/cssmin.py app/demo.py app/models.py app/solver.py                    core/entity.py core/epfo_rules.py core/orphan.py                    core/parsers.py core/reconcile.py; do
+            echo "::group::$f"
+            if python "$f"; then
+              echo "$f OK"
+            else
+              echo "::error file=$f::self-test failed"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
 
   deploy:
     name: deploy to Cloud Run
