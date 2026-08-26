@@ -585,6 +585,54 @@ def main() -> int:
          .replace(",", "") in tenD.replace(",", "")),
     ]
 
+    # ---- one action, not a list -------------------------------------------
+    hm = get("/home", BAD)
+    checks += [
+        ("the dashboard names a single next action", "Do this next" in hm),
+        ("it prefers what the member can do alone",
+         solver.next_step(bad_a).href == "/exit"),
+        ("an unchecked record is sent to the one thing that unblocks it",
+         solver.next_step(_load_un(c, un)).href == "/history-entry"),
+        ("a clean record is given nothing to do",
+         solver.next_step(good_a) is None
+         and "Do this next" not in get("/home", GOOD)),
+    ]
+
+    # ---- the record, on paper ---------------------------------------------
+    pr = get("/print", BAD)
+    checks += [
+        ("the summary carries the member's identity", "Prepared" in pr),
+        ("it shows EPFO's record against the evidence",
+         "Evidence runs to" in pr),
+        ("it lists the corrections being asked for",
+         "Corrections requested" in pr),
+        ("with the evidence behind each one", "Evidence relied on" in pr),
+        ("and the order they must happen in", "after steps 1 and 2" in pr),
+        ("it disclaims itself", "Not issued by EPFO" in pr),
+        ("it is printable", 'class="doc"' in pr),
+        # Written this afternoon and it reintroduced the oldest bug here.
+        ("an unchecked record is not told nothing is blocking",
+         "Nothing is blocking" not in get("/print", un)),
+        ("it says which check could not run",
+         "could not run" in get("/print", un)),
+        ("a clean record says so plainly",
+         "Nothing is blocking" in get("/print", GOOD)),
+    ]
+
+    # ---- what a forgotten account has grown into --------------------------
+    rc2 = get(f"/recover/{tan}", BAD)
+    est = next(o.assessment.estimate for o in bad_a.orphans
+               if o.assessment.verdict == "LIKELY")
+    checks += [
+        ("the recovery page separates contributions from growth",
+         "You contributed" in rc2 and "Interest over" in rc2),
+        ("interest is the larger part after thirteen years",
+         est.interest_low > est.principal_low),
+        ("principal and interest reconcile to the total",
+         est.principal_low + est.interest_low == est.low),
+        ("the years are counted, not asserted", est.years > 1),
+    ]
+
     # ---- PMVBRY, faithfully unhelpful -------------------------------------
     checks.append(("PMVBRY refuses you exactly as the real one does",
                    "not authorized to access" in get("/pmvbry", BAD)))

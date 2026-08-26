@@ -84,6 +84,20 @@ class Estimate:
     low: int
     high: int
     basis: str
+    # What was contributed, before interest. Interest has always been part of
+    # low/high; keeping the principal beside it lets a page show the growth
+    # rather than only the total.
+    principal_low: int = 0
+    principal_high: int = 0
+    years: float = 0.0
+
+    @property
+    def interest_low(self) -> int:
+        return max(0, self.low - self.principal_low)
+
+    @property
+    def interest_high(self) -> int:
+        return max(0, self.high - self.principal_high)
 
     def render(self) -> str:
         return f"Rs {self.low:,} - Rs {self.high:,} (estimated; {self.basis})"
@@ -100,7 +114,7 @@ ANNUAL_INTEREST = 0.0815
 
 def estimate_balance(gross_monthly: float, months: int, years_since_exit: float) -> Estimate:
     """Rough, clearly-banded estimate. Shown to the member, never filed."""
-    def corpus(ratio: float) -> float:
+    def parts(ratio: float) -> tuple[float, float]:
         basic = gross_monthly * ratio
         employee = basic * EPF_RATE
         eps = min(basic, EPS_WAGE_CAP) * EPS_RATE
@@ -108,12 +122,18 @@ def estimate_balance(gross_monthly: float, months: int, years_since_exit: float)
         monthly = employee + employer_epf
         principal = monthly * months
         # Interest accrues while the account sits inoperative.
-        return principal * ((1 + ANNUAL_INTEREST) ** max(0.0, years_since_exit))
+        grown = principal * ((1 + ANNUAL_INTEREST) ** max(0.0, years_since_exit))
+        return principal, grown
 
+    p_low, c_low = parts(BASIC_RATIO_LOW)
+    p_high, c_high = parts(BASIC_RATIO_HIGH)
     return Estimate(
-        low=int(round(corpus(BASIC_RATIO_LOW), -2)),
-        high=int(round(corpus(BASIC_RATIO_HIGH), -2)),
+        low=int(round(c_low, -2)),
+        high=int(round(c_high, -2)),
         basis="basic pay assumed 40-50% of the gross reported in Form 26AS",
+        principal_low=int(round(p_low, -2)),
+        principal_high=int(round(p_high, -2)),
+        years=round(max(0.0, years_since_exit), 1),
     )
 
 

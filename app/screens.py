@@ -266,6 +266,18 @@ def page_home(a, token="sample"):
                     + "".join(f"<li>{esc(n)}</li>" for n in notes)
                     + "</ul>", quiet=True)
 
+    # The plan answers "what does this cost me". This answers "what do I do
+    # now", which is the question somebody actually opens the page with.
+    step = solver.next_step(a)
+    do_now = ""
+    if step:
+        do_now = card("Do this next",
+                      f"<h3>{esc(step.title)}</h3>"
+                      f'<p class="sub" style="margin:4px 0 14px">'
+                      f"{esc(step.why)}</p>"
+                      f'<a class="btn" href="{step.href}?s={esc(token)}">'
+                      f"{esc(step.cta)}</a>")
+
     links = [("&#128202;", "Service Timeline", "/timeline"),
              ("&#9989;", "Claim Check", "/check"),
              ("&#128296;", "Corrections", "/corrections"),
@@ -276,7 +288,7 @@ def page_home(a, token="sample"):
                  for i, l, h in links)
 
     return page(a, token, "/home", "Home",
-                top + f'<div class="grid">{profile}{checks}</div>' + gaps
+                top + do_now + f'<div class="grid">{profile}{checks}</div>' + gaps
                 + card("Quick Links", f'<div class="ql">{ql}</div>'),
                 crumb="Home", heading=False)
 
@@ -1227,11 +1239,25 @@ def page_recover(a, token="sample", tan=""):
     facts = [("Establishment", esc(c.employer_name)),
              ("Establishment code",
               f"<code>{esc(asm.establishment.code)}</code>"
-              if getattr(asm, "establishment", None) else "&mdash;"),
+              if getattr(asm, "establishment", None) else
+              '<span class="sub">not resolved</span>'),
              ("Employer TAN", f"<code>{esc(c.tan)}</code>"),
              ("Period", f"{_d(c.first_seen)} to {_d(c.last_seen)}"),
-             ("Months", str(c.months)),
-             ("Estimated balance", est_txt)]
+             ("Months", str(c.months))]
+    # The interest has been in the estimate all along and never shown. Over
+    # thirteen years it is most of the money, and it is the reason to chase
+    # the account rather than write it off.
+    if est and est.principal_low and est.years >= 1:
+        facts += [
+            ("You contributed",
+             f"{rs(est.principal_low)} &ndash; {rs(est.principal_high)}"),
+            (f"Interest over {est.years:.0f} years",
+             f'<span style="color:var(--green)">+ {rs(est.interest_low)} '
+             f"&ndash; {rs(est.interest_high)}</span>"),
+            ("Worth today", f"<strong>{est_txt}</strong>"),
+        ]
+    else:
+        facts.append(("Estimated balance", est_txt))
 
     why = "".join(f"<li>{esc(r)}</li>" for r in (asm.reasons or []))
 
@@ -1422,3 +1448,125 @@ def page_outcome(a, token="sample"):
     return page(a, token, "/corrections", "Preview the outcome",
                 banner + verdict + table_card + forms + left,
                 crumb="Manage / Corrections / Outcome")
+
+
+# ---------------------------------------------------------------------------
+# The whole record, on paper
+# ---------------------------------------------------------------------------
+# Every correction route in this product ends at a counter or a grievance
+# form, and both want paper. The site had a print stylesheet from the start
+# and no page worth printing - a member had to print six screens and staple
+# them, navigation and all.
+
+def _after(deps) -> str:
+    if not deps:
+        return ""
+    noun = "step" if len(deps) == 1 else "steps"
+    return f" &middot; after {noun} " + " and ".join(str(d) for d in deps)
+
+
+def page_print(a, token="sample"):
+    m, u = _who(a)
+    ident = getattr(a, "identity", {}) or {}
+    g = solver.gates(a)
+    blocking = solver.blocking_failures(g)
+    advisory = solver.advisory_failures(g)
+    recs = solver.reconstruct(a)
+    p = solver.plan(a)
+
+    head = card("Member", kv([
+        ("Name", esc(m)),
+        ("UAN", esc(u) or "not found"),
+        ("Date of birth", _d(ident.get("dob"))),
+        ("PAN", esc(ident.get("pan") or "not found")),
+        ("Prepared", _d(TODAY)),
+    ]))
+
+    # What EPFO records, against what the evidence says.
+    rows, cls = [], []
+    for r in recs:
+        if r.verdict == "unchecked":
+            continue
+        word = VERDICT_WORD.get(r.verdict, ("Checked", "nu2"))[0]
+        rows.append([esc(r.employer),
+                     f"<code>{esc(r.member_id or 'not linked')}</code>",
+                     f"{_d(r.asserted_doj)} to {_d(r.asserted_doe)}",
+                     _d(r.last_seen),
+                     esc(word)])
+        cls.append("")
+    record = card("Service record against independent evidence",
+                  table(["Establishment", "Member ID", "EPFO records",
+                         "Evidence runs to", "Finding"], rows, cls)
+                  if rows else '<p class="sub">No service record to compare.</p>')
+
+    # The corrections being asked for, in the order they must happen.
+    asks = ""
+    for r in recs:
+        if r.verdict not in ("exit_wrong", "exit_missing", "join_wrong"):
+            continue
+        field = ("Date of exit" if r.verdict != "join_wrong"
+                 else "Date of joining")
+        asks += (f"<li><b>{esc(r.employer)}</b>"
+                 f'<span class="m">{field}: '
+                 f"{_d(r.asserted_doe if r.verdict != 'join_wrong' else r.asserted_doj)}"
+                 f" &rarr; <strong>{_d(r.exit_best)}</strong></span>"
+                 f'<span class="m">Corroborated by '
+                 f"{esc(', '.join(r.source_names))}. "
+                 f"Confidence {esc(r.confidence.lower())}.</span></li>")
+    corrections_card = (card("Corrections requested",
+                             f'<ol class="stp">{asks}</ol>')
+                        if asks else "")
+
+    # Evidence, so the counter can check the claim rather than take it.
+    ev_rows = []
+    for r in recs:
+        if r.verdict in ("agrees", "unchecked"):
+            continue
+        for src in r.source_names:
+            ev_rows.append([esc(r.employer), esc(src),
+                            f"to {_d(r.last_seen)}"])
+    evidence = (card("Evidence relied on",
+                     table(["Establishment", "Source", "Covers"], ev_rows))
+                if ev_rows else "")
+
+    # What is blocked today, so the member can point at it.
+    st_rows = [[esc(x.code), esc(x.name), "Fails"] for x in blocking]
+    st_rows += [[esc(x.code), esc(x.name), "Worth doing"] for x in advisory]
+    if st_rows:
+        status = card("Checks not passing",
+                      table(["", "Check", "Status"], st_rows))
+    elif getattr(a, "dates_checked", False):
+        status = card("Checks", '<p class="sub">Nothing is blocking a claim on '
+                                "this record.</p>")
+    else:
+        status = card("Checks", '<p class="sub">The service history was not '
+                                "supplied, so the date checks could not run. "
+                                "This summary is incomplete.</p>")
+
+    plan_card = ""
+    if p.steps:
+        items = "".join(
+            f"<li><b>{esc(s.title)}</b>"
+            f'<span class="m">{esc(s.detail)}</span>'
+            f'<span class="m">{esc(ROUTE_WORD.get(s.route, (s.route, ""))[0])}'
+            f"{_after(s.deps)}"
+            f"</span></li>" for s in p.steps)
+        plan_card = card("What has to happen, in order",
+                         f'<ol class="stp">{items}</ol>')
+
+    foot = ('<div class="doc" style="margin-top:16px"><p class="sub">'
+            "Prepared by PF Sahi Hai, an independent prototype, from documents "
+            "the member supplied. Not issued by EPFO and not an official "
+            "record. Every figure is derived from the member&rsquo;s own Form "
+            "26AS, EPF passbook and service history.</p></div>")
+
+    return page(a, token, "/print", "Record summary",
+                alert("<h2>Print this and take it with you</h2>"
+                      "<p>Everything on one page, without navigation, for an "
+                      "EPFO counter or an EPFiGMS grievance.</p>"
+                      "<p><strong>Ctrl+P</strong> (or Cmd+P) prints it. The "
+                      "navigation and banners are stripped automatically.</p>",
+                      "b")
+                + head + record + status + corrections_card + plan_card
+                + evidence + foot,
+                crumb="Record summary")

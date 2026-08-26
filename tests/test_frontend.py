@@ -38,7 +38,7 @@ PATHS = [
     "/corrections", "/password", "/notifications",
     "/history", "/history-entry", "/claim", "/claim-10d", "/transfer",
     "/track", "/track-old", "/scheme-certificate", "/check", "/why-rejected",
-    "/pmvbry", "/pmvbry-flc", "/pmvbry-cert", "/privacy",
+    "/pmvbry", "/pmvbry-flc", "/pmvbry-cert", "/privacy", "/print",
 ]
 PUBLIC = ["/login", "/upload"]
 

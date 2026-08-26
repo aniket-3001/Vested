@@ -335,6 +335,54 @@ def plan(a, employer_closed: bool = False) -> Plan:
     return p
 
 
+@dataclass(frozen=True)
+class NextStep:
+    """The one thing to do now, and where to do it."""
+    title: str
+    why: str
+    href: str
+    cta: str
+
+
+def next_step(a) -> NextStep | None:
+    """
+    One action, not a list.
+
+    A plan with three steps and a dependency graph is the right answer to
+    "what does this cost me". It is the wrong answer to "what do I do now",
+    which is what somebody actually opens the page asking. So: the first
+    unblocked step, preferred in the order a member can actually act - what
+    they can do alone, then what needs an employer, then what needs EPFO.
+    """
+    if not getattr(a, "dates_checked", False):
+        return NextStep(
+            "Add your service history",
+            "Without it we cannot check joining and leaving dates, which is "
+            "where most claims fail.",
+            "/history-entry", "Enter the dates")
+
+    p = plan(a)
+    open_steps = [s for s in p.steps if not s.deps]
+    if not open_steps:
+        adv = advisory_failures(gates(a))
+        if adv:
+            return NextStep(
+                "Bring your forgotten account across",
+                "It does not block your claim, but it is your money.",
+                "/transfer", "See the account")
+        return None
+
+    # Self-service first: it is the only thing needing nobody else.
+    open_steps.sort(key=lambda s: (0 if R.SELF_SERVICE in s.route else 1, s.n))
+    s0 = open_steps[0]
+    href = {R.SELF_SERVICE: "/exit", R.JOINT_DECL: "/joint-declaration",
+            R.CLAIM_ORPHAN: "/transfer"}.get(s0.route, "/corrections")
+    why = (s0.detail or "").rstrip(".")
+    if R.SELF_SERVICE in s0.route:
+        why += ". No employer approval needed"
+    return NextStep(s0.title, why + ".", href, "Start this")
+
+
 def _title(c: dict) -> str:
     return {
         "MISSING_EXIT": "Add the missing date of exit",

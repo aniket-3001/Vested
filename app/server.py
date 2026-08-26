@@ -199,6 +199,7 @@ def create_app() -> Flask:
     simple("/check", screens.page_check)
     simple("/why-rejected", screens.page_why)
     simple("/privacy", screens.page_privacy)
+    simple("/print", screens.page_print)
 
     for _p2 in ("/pmvbry", "/pmvbry-flc", "/pmvbry-cert"):
         def _pm(_h=_p2):
