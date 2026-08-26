@@ -99,7 +99,7 @@ Resolves the employer to a 15-character establishment code, estimates the balanc
 **Silence when there is no money.** EPF coverage is not universal. An employer absent from the EPF register returns `UNLIKELY`, generates **no plan and no estimate**, and says so.
 
 ### F11 — Plain-language interface
-No engine vocabulary reaches the screen. `EXIT_TOO_EARLY` renders as *"recorded the wrong leaving date."* Findings carry Hindi alongside English.
+No engine vocabulary reaches the screen. `EXIT_TOO_EARLY` renders as *"recorded the wrong leaving date."* Findings and claim verdicts carry Hindi alongside English, marked `lang="hi"` so a screen reader switches voice. Navigation is left in one language: half-translated chrome reads worse than none.
 
 ---
 
@@ -141,7 +141,7 @@ Every step works **without JavaScript**, and remains readable **without CSS**.
 
 **Accessibility.** Semantic HTML; usable with CSS disabled; no JavaScript dependency; 18px base type; high contrast; large touch targets; one decision per screen.
 
-**Language.** Plain-language rendering of every engine concept, Hindi alongside English on findings.
+**Language.** Plain-language rendering of every engine concept. Hindi alongside English on findings and verdicts, not on navigation.
 
 **Privacy.** No disk writes. No database. No logging of filenames, content, or extracted text. Sessions in memory, expiring in 30 minutes. No outbound call to any government system.
 

@@ -289,6 +289,17 @@ input:disabled{background:#f4f6f6;color:var(--mute)}
 .gt .i.no{color:var(--red)}
 .gt .i.un{color:var(--mute)}
 
+/* Hindi beside English on findings */
+.hi{display:block;font-size:14px;color:var(--mute);margin-top:3px;line-height:1.5}
+
+/* a letter meant to be printed and carried to a counter */
+.doc{border:1px solid var(--line);border-radius:4px;padding:18px;background:#fff}
+.doc h3{font-size:15px;margin-bottom:10px;color:var(--teal-d)}
+.doc pre{white-space:pre-wrap;font:inherit;font-size:15px;margin:0;line-height:1.55}
+.ann{margin:6px 0 0 18px;padding:0;font-size:14px;color:var(--mute)}
+.rz{margin:0 0 0 18px;padding:0}
+.rz li{margin-bottom:6px}
+
 /* visually hidden, still read aloud */
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;
   clip:rect(0 0 0 0);white-space:nowrap}

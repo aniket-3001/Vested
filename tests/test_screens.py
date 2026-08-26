@@ -310,6 +310,49 @@ def main() -> int:
          and "&amp;middot;" not in get("/why-rejected", BAD)),
     ]
 
+    # ---- recovering one forgotten account --------------------------------
+    # The engine produced a four-step plan and a drafted trace request from the
+    # start and nothing rendered either, so the transfer page named money the
+    # member had no way to reach.
+    tan = next(o.candidate.tan for o in bad_a.orphans
+               if o.assessment.verdict == "LIKELY")
+    rc = get(f"/recover/{tan}", BAD)
+    checks += [
+        ("the transfer page links to a recovery page",
+         f"/recover/{tan}?s=" in get("/transfer", BAD)),
+        ("the recovery page names the establishment code",
+         "MHBAN0026403000" in rc),
+        ("it gives an ordered plan", 'class="stp"' in rc),
+        ("it says which step is blocked and by what", "Needs member ID" in rc),
+        ("it drafts the letter", "Regional Provident Fund Commissioner" in rc),
+        ("the letter carries its evidence annexure", 'class="ann"' in rc),
+        ("it labels the balance a range, with the assumption stated",
+         "Range, not a figure" in rc and "basic pay assumed" in rc),
+        ("it says who sends the letter", "We do not send it for you" in rc),
+        ("the letter is printable", 'class="doc"' in rc),
+        ("an unknown account does not 500",
+         c.get(f"/recover/NOSUCH?s={BAD}").status_code == 200),
+        ("and says so rather than inventing one",
+         "No such account" in get("/recover/NOSUCH", BAD)),
+    ]
+
+    # ---- Hindi on the findings, as the docs have always claimed -----------
+    import re as _re
+    def _dev(s):
+        return _re.findall(r"[ऀ-ॿ]+", s)
+    checks += [
+        ("the blocked verdict carries Hindi", bool(_dev(get("/home", BAD)))),
+        ("so does the clean one", bool(_dev(get("/home", GOOD)))),
+        ("and the unchecked one", bool(_dev(get("/home", un)))),
+        ("every timeline finding carries Hindi",
+         len(_dev(get("/timeline", BAD))) >= 3),
+        ("Hindi is marked for a screen reader", 'lang="hi"' in get("/home", BAD)),
+        # Translating navigation would add weight to every page and
+        # half-translated chrome reads worse than none.
+        ("navigation is left in one language",
+         not _dev(get("/home", BAD).split("<main>")[0])),
+    ]
+
     # ---- PMVBRY, faithfully unhelpful -------------------------------------
     checks.append(("PMVBRY refuses you exactly as the real one does",
                    "not authorized to access" in get("/pmvbry", BAD)))

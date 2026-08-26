@@ -128,6 +128,32 @@ VERDICT_WORD = {
     "agrees": ("Matches the evidence", "ok"),
 }
 
+# Hindi beside English on the findings themselves. EPFO's own portal is
+# bilingual - its UAN card prints both scripts - so this matches the original
+# rather than decorating ours. Findings only: translating the chrome would add
+# weight to every page for no gain, and half-translated navigation reads worse
+# than navigation left alone.
+HINDI = {
+    "exit_wrong": "नौकरी छोड़ने की तारीख गलत है",
+    "exit_missing": "छोड़ने की तारीख दर्ज नहीं है",
+    "join_wrong": "नौकरी शुरू करने की तारीख गलत है",
+    "unlinked": "यह खाता आपके UAN से जुड़ा नहीं है",
+    "agrees": "रिकॉर्ड सही है",
+}
+
+# The three verdicts a member acts on.
+HINDI_VERDICT = {
+    "rejected": "इस स्थिति में आपका क्लेम अस्वीकृत हो जाएगा",
+    "settle": "आपका क्लेम निपट जाना चाहिए",
+    "unknown": "अभी जांच नहीं हुई है",
+}
+
+
+def hi(text: str) -> str:
+    """Hindi under an English line, marked so a screen reader switches voice."""
+    return f'<span class="hi" lang="hi">{text}</span>'
+
+
 
 def page_timeline(a, token="sample"):
     recs = solver.reconstruct(a)
@@ -142,7 +168,7 @@ def page_timeline(a, token="sample"):
         word, tone = VERDICT_WORD.get(r.verdict, ("Checked", "nu2"))
         rows = [("EPFO records", f"{_d(r.asserted_doj)} to {_d(r.asserted_doe)}"),
                 ("Evidence runs to", f"<strong>{_d(r.last_seen)}</strong>"),
-                ("Status", pill(word, tone))]
+                ("Status", pill(word, tone) + hi(HINDI.get(r.verdict, "")))]
         if r.exit_best and r.verdict in ("exit_wrong", "exit_missing"):
             rows.append(("Date to enter",
                          f'<strong>{_d(r.exit_best)}</strong> '
@@ -183,18 +209,21 @@ def page_home(a, token="sample"):
               "Your service history has not been checked yet.</a>")
     if fail:
         top = alert(f"<h1>This claim would be rejected</h1>"
+                    + hi(HINDI_VERDICT["rejected"]) +
                     f"<p>{fail} of {len(g)} checks fail. "
                     f"Estimated time to fix: "
                     f"<strong>{p.critical_days} days</strong>.{caveat}</p>"
                     f'<p><a class="btn" href="/corrections?s={esc(token)}">'
                     f"See the plan</a></p>", "r")
     elif not checked:
-        top = alert("<h1>Not yet checked</h1><p>Your service history has not been "
+        top = alert("<h1>Not yet checked</h1>" + hi(HINDI_VERDICT["unknown"])
+                    + "<p>Your service history has not been "
                     "read, so no claim verdict can be given.</p>"
                     f'<p><a class="btn" href="/history-entry?s={esc(token)}">'
                     "Add service history</a></p>", "b")
     else:
         top = alert("<h1>This claim should settle</h1>"
+                    + hi(HINDI_VERDICT["settle"]) +
                     f"<p>{ok} of {len(g)} checks pass.</p>"
                     f'<p><a class="btn" href="/claim?s={esc(token)}">'
                     "Go to claim</a></p>", "g")
@@ -590,14 +619,16 @@ def page_transfer(a, token="sample"):
         est = getattr(o.assessment, "estimate", None)
         rows.append([esc(c.employer_name), f"<code>{esc(c.tan)}</code>",
                      f"{_d(c.first_seen)} to {_d(c.last_seen)}",
-                     (rs(est.low) + " &ndash; " + rs(est.high)) if est else "&mdash;"])
+                     (rs(est.low) + " &ndash; " + rs(est.high)) if est else "&mdash;",
+                     f'<a href="/recover/{esc(c.tan)}?s={esc(token)}">'
+                     "How to recover</a>"])
     return page(a, token, "/transfer", "Request for Transfer of Account",
                 alert(f"<h2>{len(rows)} account"
                       f"{'' if len(rows) == 1 else 's'} not linked to your "
                       f"UAN</h2>", "a")
                 + card("Form 13 — One Member, One EPF Account",
                        table(["Establishment", "TAN", "Period",
-                              "Estimated balance"], rows)),
+                              "Estimated balance", ""], rows)),
                 crumb="Online Services / Transfer")
 
 
@@ -983,3 +1014,76 @@ def page_upload(error: str = ""):
                        kv([("Stored", "Never"), ("Logged", "Never"),
                            ("Sent anywhere", "Never"),
                            ("Held in memory", "30 minutes")]), quiet=True))
+
+
+# ---------------------------------------------------------------------------
+# Recovering one forgotten account
+# ---------------------------------------------------------------------------
+# The engine has been producing a four-step recovery plan and a drafted trace
+# request since the beginning, and nothing rendered either. The transfer page
+# listed the account and stopped, which told a member money existed and left
+# them with no way to reach it.
+
+def _orphan(a, tan: str):
+    for o in getattr(a, "orphans", []) or []:
+        if getattr(o.candidate, "tan", "") == tan:
+            return o
+    return None
+
+
+def page_recover(a, token="sample", tan=""):
+    o = _orphan(a, tan)
+    if o is None:
+        return page(a, token, "/transfer", "Recover an account",
+                    alert("<h2>No such account on this record</h2>", "b"),
+                    crumb="Online Services / Transfer")
+
+    c, asm = o.candidate, o.assessment
+    est = getattr(asm, "estimate", None)
+    est_txt = (f"{rs(est.low)} &ndash; {rs(est.high)}" if est else "&mdash;")
+
+    facts = [("Establishment", esc(c.employer_name)),
+             ("Establishment code",
+              f"<code>{esc(asm.establishment.code)}</code>"
+              if getattr(asm, "establishment", None) else "&mdash;"),
+             ("Employer TAN", f"<code>{esc(c.tan)}</code>"),
+             ("Period", f"{_d(c.first_seen)} to {_d(c.last_seen)}"),
+             ("Months", str(c.months)),
+             ("Estimated balance", est_txt)]
+
+    why = "".join(f"<li>{esc(r)}</li>" for r in (asm.reasons or []))
+
+    basis = ""
+    if est:
+        basis = ('<p class="sub" style="margin-top:10px">Range, not a figure: '
+                 f"{esc(est.basis)}.</p>")
+
+    steps = ""
+    for s in (o.plan or []):
+        blocked = (f'<span class="par">Needs {esc(s.blocked_by)} first</span>'
+                   if s.blocked_by else "")
+        steps += (f"<li><b>{esc(s.action)}</b>"
+                  f'<span class="m">{esc(s.detail)}</span>{blocked}</li>')
+
+    doc = o.document
+    letter = (f'<div class="doc"><h3>{esc(doc.title)}</h3>'
+              f"<pre>{esc(doc.body)}</pre>")
+    if getattr(doc, "annexure", None):
+        rows = "".join(f"<li>{esc(x)}</li>" for x in doc.annexure)
+        letter += (f"<p><strong>Annexure &mdash; evidence</strong></p>"
+                   f'<ul class="ann">{rows}</ul>')
+    letter += "</div>"
+
+    return page(a, token, "/transfer", "Recover an account",
+                alert(f"<h2>{esc(c.employer_name)}</h2>"
+                      f"<p>Worked {c.months} months here. No member ID under "
+                      f"your UAN shows it.</p>", "a")
+                + card("What we found", kv(facts) + basis)
+                + card("Why we think this account exists",
+                       f'<ul class="rz">{why}</ul>', quiet=True)
+                + card("How to recover it", f'<ol class="stp">{steps}</ol>')
+                + card("Letter to send", letter
+                       + '<p class="sub" style="margin-top:12px">Print this and '
+                         "take it to your regional EPFO office, or attach it to "
+                         "an EPFiGMS grievance. We do not send it for you.</p>"),
+                crumb="Online Services / Transfer / Recover")

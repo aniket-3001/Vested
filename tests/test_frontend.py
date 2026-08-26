@@ -60,6 +60,9 @@ def main() -> int:
     checks: list[tuple[str, bool]] = []
 
     pages = {p: c.get(f"{p}?s={TOK}").get_data(as_text=True) for p in PATHS}
+    # The recovery page takes a path parameter, so it cannot sit in PATHS.
+    pages["/recover"] = c.get(
+        f"/recover/MUMS45678B?s={TOK}").get_data(as_text=True)
     pages.update({p: c.get(p).get_data(as_text=True) for p in PUBLIC})
 
     # --- no JavaScript anywhere -------------------------------------------
@@ -112,6 +115,8 @@ def main() -> int:
         # correctly highlights nothing. Every page that does live in a menu
         # must highlight exactly one.
         want = 0 if name == "/privacy" else 1
+        if name == "/recover":
+            want = 1  # sits under Online Services
         checks.append((f"{name}: {want} menu(s) marked current",
                        doc.count('<li class="on"') == want))
     home = pages["/home"]

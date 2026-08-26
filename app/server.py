@@ -192,6 +192,11 @@ def create_app() -> Flask:
         _pm.__name__ = "pm" + _p2.replace("/", "_").replace("-", "_")
         app.add_url_rule(_p2, view_func=_pm)
 
+    @app.get("/recover/<tan>")
+    def recover(tan: str):
+        a, gone = _need()
+        return gone or screens.page_recover(a, _token(), tan)
+
     # ---- joint declaration ----------------------------------------------
     @app.get("/joint-declaration")
     def jd():
