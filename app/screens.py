@@ -595,7 +595,7 @@ def page_transfer(a, token="sample"):
                 alert(f"<h2>{len(rows)} account"
                       f"{'' if len(rows) == 1 else 's'} not linked to your "
                       f"UAN</h2>", "a")
-                + card("Form 13 &mdash; One Member, One EPF Account",
+                + card("Form 13 — One Member, One EPF Account",
                        table(["Establishment", "TAN", "Period",
                               "Estimated balance"], rows)),
                 crumb="Online Services / Transfer")
@@ -840,14 +840,19 @@ def default_events(a) -> list[dict]:
     """What this record would have been told, and when."""
     out = []
     g = solver.gates(a)
-    ok, fail, unk = solver.gate_summary(g)
     p = solver.plan(a)
-    if fail:
+    # Count what actually blocks. Counting the advisory gate here would put a
+    # different number in the alert than the dashboard shows for the same
+    # record.
+    blocking = len(solver.blocking_failures(g))
+    if blocking:
+        noun = "check" if blocking == 1 else "checks"
         out.append({
             "on": TODAY, "kind": "Action needed", "tone": "no",
-            "subject": f"{fail} check(s) would reject your claim",
-            "body": (f"{fail} of {len(g)} pre-settlement checks fail. "
-                     f"Estimated {p.critical_days} days to clear if done in order.")})
+            "subject": f"{blocking} {noun} would reject your claim",
+            "body": (f"{blocking} of {len(g)} pre-settlement {noun} fail. "
+                     f"Estimated {p.critical_days} days to clear if done in "
+                     f"order.")})
     for r in solver.reconstruct(a):
         if r.verdict == "exit_missing":
             out.append({

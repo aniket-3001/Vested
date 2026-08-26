@@ -52,6 +52,21 @@ SOURCE_LABEL = {
 TRACK_ORDER = ["EPFO_SERVICE", "EPF_CONTRIB", "TDS_26AS", "BANK_SALARY"]
 
 
+def _inr(n: float) -> str:
+    """Indian digit grouping, as plain text. 5,00,000 not 500,000."""
+    d = f"{abs(n):.0f}"
+    if len(d) > 3:
+        head, tail = d[:-3], d[-3:]
+        parts = []
+        while len(head) > 2:
+            parts.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            parts.insert(0, head)
+        d = ",".join(parts + [tail])
+    return d
+
+
 def _dmy(d) -> str:
     """Dates read DD-MM-YYYY everywhere a member can see them."""
     if not d:
@@ -408,8 +423,8 @@ def gates(a) -> list[Gate]:
     bal = getattr(a, "total_balance", 0.0) or 0.0
     g.append(Gate("G14", "Within the auto-settlement ceiling",
                   "pass" if bal <= AUTO_SETTLE_CEILING else "fail",
-                  f"Balance {bal:,.0f} against ceiling "
-                  f"{AUTO_SETTLE_CEILING:,.0f}"))
+                  f"Balance {_inr(bal)} against ceiling "
+                  f"{_inr(AUTO_SETTLE_CEILING)}"))
     return g
 
 

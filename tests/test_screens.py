@@ -247,6 +247,23 @@ def main() -> int:
          "Nothing to report" in get("/notifications", GOOD)),
     ]
 
+    # ---- one record, one set of numbers -----------------------------------
+    # The alert counted every failing gate while the dashboard counted only the
+    # blocking ones, so the same record was described as 3 checks in one place
+    # and 2 in another.
+    nb = len(solver.blocking_failures(solver.gates(bad_a)))
+    checks += [
+        ("the alert and the dashboard agree on the count",
+         f"{nb} checks would reject" in nt
+         and f"{nb} of 14 checks fail" in get("/home", BAD)),
+        ("counts read as English, not check(s)", "check(s)" not in nt),
+        ("money uses Indian digit grouping everywhere",
+         "5,00,000" in ck and "500,000" not in ck),
+        ("no card title is double-escaped",
+         "&amp;mdash;" not in get("/transfer", BAD)
+         and "&amp;middot;" not in get("/why-rejected", BAD)),
+    ]
+
     # ---- PMVBRY, faithfully unhelpful -------------------------------------
     checks.append(("PMVBRY refuses you exactly as the real one does",
                    "not authorized to access" in get("/pmvbry", BAD)))
