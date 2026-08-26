@@ -8,7 +8,7 @@ Question this spike answers - and it is the one that can kill the project:
         Form 26AS  ->  per-deductor TAN + dated TDS transactions
         EPF passbook -> per-member-ID wage-month contributions + date of joining
 
-    If they do not, Vested does not work and we need to know now.
+    If they do not, PF Sahi Hai does not work and we need to know now.
 
 PRIVACY: this script prints STRUCTURE ONLY. No names, no amounts, no PAN, no
 UAN, no employer names, no dates. Only: which anchor fields were found, how

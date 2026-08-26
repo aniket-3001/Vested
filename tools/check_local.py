@@ -1,5 +1,5 @@
 """
-Run Vested over a folder of real documents, locally, and print structure only.
+Run PF Sahi Hai over a folder of real documents, locally, and print structure only.
 
 Nothing is written to disk, nothing leaves the machine, and no name, amount,
 date, identifier or filename is ever printed. The password is read with

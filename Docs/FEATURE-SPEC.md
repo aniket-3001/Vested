@@ -1,4 +1,4 @@
-# Vested — Feature Specification
+# PF Sahi Hai — Feature Specification
 
 **Build What Moves India** · Independent hackathon prototype
 Status: engine complete, upload and deployment ready, two external dependencies open (see §9)

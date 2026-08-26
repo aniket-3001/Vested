@@ -7,7 +7,7 @@
 # script exercises it against a THROWAWAY service, so a bug in the rollback is
 # found here rather than during a real bad deploy of the live demo.
 #
-# It deliberately does not touch the `vested` service. Testing a rollback by
+# It deliberately does not touch the `pf-sahi-hai` service. Testing a rollback by
 # breaking production is how you find out your rollback is broken.
 #
 # What it does:
@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-SERVICE="${SERVICE:-vested-rollback-test}"
+SERVICE="${SERVICE:-pf-sahi-hai-rollback-test}"
 REGION="${REGION:-asia-south1}"
 PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
 
@@ -31,7 +31,7 @@ if [ -z "$PROJECT" ] || [ "$PROJECT" = "(unset)" ]; then
   exit 2
 fi
 
-if [ "$SERVICE" = "vested" ]; then
+if [ "$SERVICE" = "pf-sahi-hai" ]; then
   echo "Refusing to run against the live service. This test breaks what it deploys." >&2
   exit 2
 fi

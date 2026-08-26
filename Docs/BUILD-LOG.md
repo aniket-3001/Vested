@@ -1,4 +1,4 @@
-# Vested — Build Log
+# PF Sahi Hai — Build Log
 
 An honest record of how this got made: what we researched, what we rejected, what broke, and what is still open.
 
@@ -32,7 +32,7 @@ Better idea in the abstract, and its approve-only principle survives into the fi
 
 Gawaah's entire data layer was imaginary. A judge asks *"where does the electricity data come from?"* and the honest answer is *"an inter-departmental data-sharing agreement that doesn't exist."* That is a proposal with a UI, not a prototype.
 
-### 2.3 The reframe that produced Vested
+### 2.3 The reframe that produced PF Sahi Hai
 
 Pushing for **specificity** — the brief names IRCTC, EPFO and the Income Tax portal — exposed the flaw. Research found:
 
@@ -580,7 +580,7 @@ than picking a winner. Contact details earns its page because every digital
 route under EPFO 3.0 hangs off an OTP to the Aadhaar-linked mobile, and a dead
 number closes all of them silently.
 
-**467 assertions across 15 suites.** Deployed, revision vested-00019.
+**467 assertions across 15 suites.** Deployed, revision vested-00019 (the service was named `vested` at the time).
 
 ## 22 Aug 2026 — closing the engine gap
 

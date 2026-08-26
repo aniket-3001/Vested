@@ -394,7 +394,7 @@ def shell(title: str, body: str, *, token: str = "sample", active: str = "/home"
         ident = (f'<div class="uan"><b>UAN: {esc(uan) if uan else "—"}</b>'
                  f'<span>{esc(member)}</span></div>')
     head = f"""<header class="hd">
-  <div><p class="org">Vested &mdash; Provident Fund Member Portal</p>
+  <div><p class="org">PF Sahi Hai &mdash; Provident Fund Member Portal</p>
   <p class="min">Independent prototype &middot; not a government service</p></div>
   <div class="rt">{ident}<a class="out" href="/login">Logout</a></div>
 </header>{nav(active, token)}<div class="crumb">{trail}</div>"""
@@ -403,7 +403,7 @@ def shell(title: str, body: str, *, token: str = "sample", active: str = "/home"
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{esc(title)} &mdash; Vested</title>
+<title>{esc(title)} &mdash; PF Sahi Hai</title>
 <link rel="stylesheet" href="{CSS_URL}">
 </head><body>
 <div class="flag"><strong>Independent hackathon prototype.</strong>
@@ -412,7 +412,7 @@ Not affiliated with or endorsed by EPFO. Nothing is stored or submitted.
 {head}
 <main>{h1}{body}</main>
 <footer><span>Build What Moves India &middot; synthetic data only</span>
-<span>Vested 2.0</span></footer><div class="strip"></div>
+<span>PF Sahi Hai 2.0</span></footer><div class="strip"></div>
 </body></html>"""
 
 
@@ -422,16 +422,16 @@ def bare(title: str, body: str) -> str:
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{esc(title)} &mdash; Vested</title>
+<title>{esc(title)} &mdash; PF Sahi Hai</title>
 <link rel="stylesheet" href="{CSS_URL}">
 </head><body>
 <div class="flag"><strong>Independent hackathon prototype.</strong>
 Not affiliated with or endorsed by EPFO. Synthetic data only.</div>
 <header class="hd">
-  <div><p class="org">Vested &mdash; Provident Fund Member Portal</p>
+  <div><p class="org">PF Sahi Hai &mdash; Provident Fund Member Portal</p>
   <p class="min">Independent prototype &middot; not a government service</p></div>
 </header>
 <main>{body}</main>
 <footer><span>Build What Moves India &middot; synthetic data only</span>
-<span>Vested 2.0</span></footer><div class="strip"></div>
+<span>PF Sahi Hai 2.0</span></footer><div class="strip"></div>
 </body></html>"""

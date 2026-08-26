@@ -11,8 +11,8 @@ COPY core/ ./core/
 
 # Unprivileged: the process only ever holds documents in memory and has no
 # reason to be able to write anywhere.
-RUN useradd --create-home --shell /usr/sbin/nologin vested
-USER vested
+RUN useradd --create-home --shell /usr/sbin/nologin app
+USER app
 
 EXPOSE 8080
 

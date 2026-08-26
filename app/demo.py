@@ -1,7 +1,7 @@
 """
 Mock accounts, so the product can be tried by someone who has no PF documents.
 
-Vested began as an upload form. That is a reasonable way to build a checker and
+PF Sahi Hai began as an upload form. That is a reasonable way to build a checker and
 a terrible way to be evaluated: a person who has never filed an EPF claim has no
 Form 26AS, no passbook and no service history, so they reach the first screen
 and stop. Everything past that screen may as well not exist.

@@ -1,4 +1,4 @@
-# Deploying Vested
+# Deploying PF Sahi Hai
 
 The submission needs a **live demo link that works without requesting access**.
 Judges do not clone repositories.
@@ -113,8 +113,8 @@ Three ways, all ready. Pick whichever you already have.
 **Docker** — the most portable:
 
 ```bash
-docker build -t vested .
-docker run -p 8080:8080 -e OPENAI_API_KEY=sk-... vested
+docker build -t pf-sahi-hai .
+docker run -p 8080:8080 -e OPENAI_API_KEY=sk-... pf-sahi-hai
 ```
 
 **Procfile hosts** (Render, Railway, Fly, Heroku): push the repo. `Procfile` and

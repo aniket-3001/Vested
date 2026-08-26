@@ -13,14 +13,18 @@
 set -euo pipefail
 
 PROJECT="${PROJECT:-antibody-hackathon-2026}"
-REPO="${REPO:-aniket-3001/Vested}"
+REPO="${REPO:-aniket-3001/pf-sahi-hai}"
 POOL="${POOL:-github}"
 PROVIDER="${PROVIDER:-github-provider}"
+# Keeps its original name: this is an infrastructure identity that
+# already exists and holds the role grants. Renaming it would mean a
+# new account, new bindings and a new GitHub secret, for nothing a
+# user ever sees.
 SA_ID="${SA_ID:-vested-deployer}"
 
 # Repos that share this pool's provider. The provider is shared with Antibody,
 # so its condition must list both -- dropping one would break that pipeline.
-ALLOWED_REPOS="${ALLOWED_REPOS:-aniket-3001/Antibody aniket-3001/Vested}"
+ALLOWED_REPOS="${ALLOWED_REPOS:-aniket-3001/Antibody aniket-3001/pf-sahi-hai}"
 
 SA="${SA_ID}@${PROJECT}.iam.gserviceaccount.com"
 NUM="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
@@ -34,7 +38,7 @@ echo
 #    cannot deploy another project's service.
 echo "==> service account"
 gcloud iam service-accounts create "$SA_ID" \
-  --display-name="GitHub Actions deployer (Vested)" \
+  --display-name="GitHub Actions deployer (PF Sahi Hai)" \
   --project="$PROJECT" 2>/dev/null || echo "    exists"
 
 # 2. Roles required by `gcloud run deploy --source`: it uploads the source,
