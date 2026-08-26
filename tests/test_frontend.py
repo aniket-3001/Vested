@@ -63,6 +63,16 @@ def main() -> int:
     # The recovery page takes a path parameter, so it cannot sit in PATHS.
     pages["/recover"] = c.get(
         f"/recover/MUMS45678B?s={TOK}").get_data(as_text=True)
+    # A correction lives at a per-reference URL, so it has to be created
+    # before it can be swept.
+    _sub = c.post(f"/joint-declaration?s={TOK}",
+                  data={"mid": "BLBNG00123450000001234",
+                        "doc": "Appointment letter"})
+    _ct = re.search(r"s=([A-Za-z0-9_-]+)", _sub.headers["Location"]).group(1)
+    _cr = re.search(r"/correction/(\w+)", _sub.headers["Location"]).group(1)
+    pages["/correction"] = c.get(
+        f"/correction/{_cr}?s={_ct}").get_data(as_text=True)
+    pages["/outcome"] = c.get(f"/outcome?s={_ct}").get_data(as_text=True)
     pages.update({p: c.get(p).get_data(as_text=True) for p in PUBLIC})
 
     # --- no JavaScript anywhere -------------------------------------------
@@ -115,8 +125,8 @@ def main() -> int:
         # correctly highlights nothing. Every page that does live in a menu
         # must highlight exactly one.
         want = 0 if name == "/privacy" else 1
-        if name == "/recover":
-            want = 1  # sits under Online Services
+        if name in ("/recover", "/correction", "/outcome"):
+            want = 1  # reached from a page, not a menu
         checks.append((f"{name}: {want} menu(s) marked current",
                        doc.count('<li class="on"') == want))
     home = pages["/home"]

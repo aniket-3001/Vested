@@ -23,8 +23,9 @@ import time
 
 from flask import Flask, abort, redirect, request  # noqa: E402
 
-from app import demo, history, portal, screens  # noqa: E402
-from app.engine import analyse, extract_names  # noqa: E402
+from app import corrections, demo, history, portal, screens  # noqa: E402
+from app import solver  # noqa: E402
+from app.engine import TODAY, analyse, extract_names  # noqa: E402
 from app.ingest import sort_uploads  # noqa: E402
 
 SESSION_TTL = 30 * 60
@@ -69,6 +70,20 @@ def _load(token: str):
     _reap()
     entry = _sessions.get(token)
     return entry[1] if entry else None
+
+
+def _clone_for_edit(a):
+    """
+    A private copy of a shared demo record.
+
+    Demo accounts are deterministic and shared between visitors, so anything a
+    member starts - a correction, a typed service history - has to land in
+    their own session rather than mutating what everybody else sees.
+    """
+    import copy
+    fresh = copy.copy(a)
+    fresh.corrections = list(getattr(a, "corrections", None) or [])
+    return fresh
 
 
 def _token() -> str:
@@ -208,11 +223,50 @@ def create_app() -> Flask:
         a, gone = _need()
         if gone:
             return gone
-        # Nothing is sent anywhere. The reference number is issued locally so
-        # the member can see what the flow would look like, and the page says
-        # so rather than implying a filing happened.
-        ref = "JD" + secrets.token_hex(4).upper()
-        return screens.page_joint_declaration(a, _token(), submitted=ref)
+        tok = _token()
+        mid = (request.form.get("mid") or "").strip()
+        evidence = (request.form.get("doc") or "").strip()
+
+        # An orphan reconstruction carries an empty member ID, so an empty mid
+        # would match it and silently open a correction against a forgotten
+        # account. Require a real one.
+        rec = next((r for r in solver.reconstruct(a)
+                    if mid and r.member_id == mid and r.exit_best), None)
+        if rec is None:
+            return screens.page_joint_declaration(a, tok), 400
+
+        # The correction is checked against the record, never the document
+        # against reality - see the note at the top of corrections.py.
+        c = corrections.Correction(
+            ref=corrections.new_ref(), member_id=mid, employer=rec.employer,
+            field_name=("Date of Exit" if rec.verdict != "join_wrong"
+                        else "Date of Joining"),
+            current=(rec.asserted_doe if rec.verdict != "join_wrong"
+                     else rec.asserted_doj),
+            proposed=rec.exit_best, evidence=evidence,
+            route="Digital Joint Declaration", started=TODAY,
+            checks=corrections.check_correction(a, mid, rec.exit_best, evidence))
+
+        # Demo accounts are shared, so a correction one visitor starts must not
+        # appear for the next. Give them their own session, exactly as typing a
+        # service history does.
+        if tok == "sample" or tok in demo.ACCOUNTS:
+            a = _clone_for_edit(a)
+            tok = _store(a, docs=getattr(a, "docs", None))
+        held = list(getattr(a, "corrections", None) or [])
+        held = [x for x in held if x.member_id != mid] + [c]
+        a.corrections = held
+        return redirect(f"/correction/{c.ref}?s={tok}", code=303)
+
+    @app.get("/correction/<ref>")
+    def correction(ref: str):
+        a, gone = _need()
+        return gone or screens.page_correction(a, _token(), ref)
+
+    @app.get("/outcome")
+    def outcome():
+        a, gone = _need()
+        return gone or screens.page_outcome(a, _token())
 
     # ---- typing in the service history ----------------------------------
     @app.get("/history-entry")

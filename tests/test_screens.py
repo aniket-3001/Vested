@@ -272,9 +272,20 @@ def main() -> int:
         # The distinction that stops a member turning up with the wrong paper.
         ("it does not pass 26AS off as accepted evidence",
          "Not on the list" in jd),
-        ("submitting issues a reference and says it went nowhere",
-         "Submitted" in c.post(f"/joint-declaration?s={BAD}",
-                               data={"key": "x"}).get_data(as_text=True)),
+        # Submitting now opens a tracked correction rather than printing a
+        # reference and forgetting it. A malformed post must still not 500.
+        # An orphan reconstruction carries an empty member ID, so an empty
+        # mid once matched it and opened a correction against a forgotten
+        # account nobody asked to correct.
+        ("a submission with no member id is refused cleanly",
+         c.post(f"/joint-declaration?s={BAD}",
+                data={"key": "x"}).status_code == 400),
+        ("an empty member id does not match the orphan",
+         c.post(f"/joint-declaration?s={BAD}",
+                data={"mid": "", "doc": "Appointment letter"}).status_code == 400),
+        ("an unknown member id is refused",
+         c.post(f"/joint-declaration?s={BAD}",
+                data={"mid": "ZZZZ", "doc": "Appointment letter"}).status_code == 400),
     ]
 
     # ---- KYC and contact --------------------------------------------------
@@ -331,6 +342,81 @@ def main() -> int:
         ("counts read as English, not account(s)",
          "account(s)" not in get("/transfer", BAD)
          and "account(s)" not in get("/home", BAD)),
+    ]
+
+    # ---- the correction loop ---------------------------------------------
+    # The half that was missing: submit, get checked, see what the record looks
+    # like if EPFO accepts it. Three things must stay true throughout - we
+    # never claim a document was verified, nothing implies EPFO received
+    # anything, and no state means rejected.
+    from app import corrections as CO
+
+    mid = next(r.member_id for r in solver.reconstruct(bad_a)
+               if r.exit_best and r.verdict == "exit_wrong")
+    sub = c.post(f"/joint-declaration?s={BAD}",
+                 data={"mid": mid, "doc": "Appointment letter"})
+    checks.append(("submitting a correction redirects to it",
+                   sub.status_code == 303
+                   and "/correction/" in sub.headers.get("Location", "")))
+    ctok = re.search(r"s=([A-Za-z0-9_-]+)", sub.headers["Location"]).group(1)
+    cref = re.search(r"/correction/(\w+)", sub.headers["Location"]).group(1)
+    cpage = get(f"/correction/{cref}", ctok)
+
+    checks += [
+        ("the correction is checked, not the document",
+         "Checked" in cpage and "We cannot read your appointment letter" in cpage),
+        ("nothing on it says the document was verified",
+         "Verified" not in cpage),
+        ("nothing implies EPFO received it",
+         "EPFO. We do not submit anything for you." in cpage),
+        ("all four checks are shown", cpage.count('class="i ok"') == 4),
+        ("it names where the member files it themselves",
+         "Manage &rarr; Joint Declaration" in cpage),
+        ("it quotes EPFO's limit as EPFO's", "published limit" in cpage),
+        ("a demo account is not mutated by one visitor",
+         "Corrections you have started" not in get("/corrections", BAD)),
+        ("but the editor's own session carries it",
+         "Corrections you have started" in get("/corrections", ctok)),
+    ]
+
+    # A document EPFO does not accept is returned, never refused.
+    bad_doc = c.post(f"/joint-declaration?s={BAD}",
+                     data={"mid": mid, "doc": "Form 26AS"})
+    btok = re.search(r"s=([A-Za-z0-9_-]+)", bad_doc.headers["Location"]).group(1)
+    bref = re.search(r"/correction/(\w+)", bad_doc.headers["Location"]).group(1)
+    bpage = get(f"/correction/{bref}", btok)
+    checks += [
+        ("an unaccepted document is caught", "One more thing needed" in bpage),
+        ("it is returned, never rejected",
+         "reject" not in bpage.lower().split("<main>")[-1]),
+        ("and it names the accepted documents instead",
+         "appointment letter" in bpage.lower()),
+        ("an unready correction cannot be previewed",
+         "Nothing ready to preview" in get("/outcome", btok)),
+    ]
+
+    # The payoff, and it is genuinely recomputed rather than flagged.
+    c.post(f"/joint-declaration?s={ctok}",
+           data={"mid": next(r.member_id for r in solver.reconstruct(bad_a)
+                             if r.verdict == "exit_missing"),
+                 "doc": "Relieving letter or final payslip"})
+    oc = get("/outcome", ctok)
+    checks += [
+        ("the preview is labelled a preview", "This is a preview" in oc),
+        ("it says nothing was submitted", "Nothing has been submitted" in oc),
+        ("it says the result was recomputed, not set",
+         "not a flag we set" in oc),
+        ("the claim clears", "Claim would settle" in oc),
+        ("and it names which checks changed", "G08" in oc and "G09" in oc),
+        ("the forms go from blocked to open",
+         oc.count(">Blocked<") == 3 and oc.count(">Open<") == 3),
+        # Correcting a date must not quietly make the forgotten account vanish.
+        ("what the correction does not fix is still surfaced",
+         "Still worth doing" in oc),
+        ("a clean record has nothing to preview",
+         "Nothing ready to preview" in get("/outcome", GOOD)),
+        ("an unknown reference does not 500",
+         c.get(f"/correction/NOSUCH?s={ctok}").status_code == 200),
     ]
 
     # ---- notifications ----------------------------------------------------

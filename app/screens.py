@@ -360,6 +360,24 @@ def page_corrections(a, token="sample"):
                   f'&middot; <a href="{href}?s={esc(token)}">open</a></span>'
                   f"{dep}</li>")
 
+    # Corrections already started belong here, beside the plan that proposed
+    # them. Without this they exist only at a URL nobody can find again.
+    started = _corrections(a)
+    inflight = ""
+    if started:
+        rows = [[f'<a href="/correction/{esc(x.ref)}?s={esc(token)}">'
+                 f"<code>{esc(x.ref)}</code></a>",
+                 esc(x.employer), _d(x.proposed),
+                 pill(x.state_word, "ok" if x.state == C.READY else "hm")]
+                for x in started]
+        ready_n = sum(1 for x in started if x.state == C.READY)
+        cta = (f'<p style="margin-top:12px">'
+               f'<a class="btn" href="/outcome?s={esc(token)}">'
+               f"Preview the outcome</a></p>" if ready_n else "")
+        inflight = card("Corrections you have started",
+                        table(["Reference", "Establishment", "New date",
+                               "Status"], rows) + cta)
+
     summary = kv([
         ("Steps", str(len(p.steps))),
         ("If done in this order", f"<strong>about {p.critical_days} days</strong>"),
@@ -372,7 +390,8 @@ def page_corrections(a, token="sample"):
         warn = alert(f"<h2>Order matters</h2><p>Step {n} will be rejected if you "
                      f"file it before the steps above are complete.</p>", "a")
     return page(a, token, "/corrections", "Corrections",
-                warn + card("Repair plan", f'<ol class="stp">{items}</ol>')
+                warn + inflight
+                + card("Repair plan", f'<ol class="stp">{items}</ol>')
                 + card("Timing", summary, quiet=True),
                 crumb="Manage / Corrections")
 
@@ -842,8 +861,10 @@ def page_joint_declaration(a, token="sample", submitted=None):
                 ["Member ID", f"<code>{esc(r.member_id)}</code>", "&mdash;"],
                 ["Establishment", esc(r.employer), "&mdash;"]]
         opts = "".join(f'<option>{esc(d)}</option>' for d in ACCEPTED_DOCS)
+        opts += '<option>Form 26AS</option>'
         form = (f'<form method="post" action="/joint-declaration?s={esc(token)}">'
                 f'<input type="hidden" name="key" value="{esc(r.key)}">'
+                f'<input type="hidden" name="mid" value="{esc(r.member_id)}">'
                 f'<div class="row">'
                 f'<div class="fr"><label for="doc{i}">Supporting document</label>'
                 f'<select id="doc{i}" name="doc">{opts}</select></div>'
@@ -1103,3 +1124,155 @@ def page_recover(a, token="sample", tan=""):
                          "take it to your regional EPFO office, or attach it to "
                          "an EPFiGMS grievance. We do not send it for you.</p>"),
                 crumb="Online Services / Transfer / Recover")
+
+
+# ---------------------------------------------------------------------------
+# A correction in flight
+# ---------------------------------------------------------------------------
+
+from app import corrections as C  # noqa: E402
+
+
+def _corrections(a) -> list:
+    return getattr(a, "corrections", None) or []
+
+
+CHECK_MARK = {True: '<span class="i ok">&#10003;</span>',
+              False: '<span class="i no">&#10007;</span>'}
+
+
+def page_correction(a, token="sample", ref=""):
+    c = next((x for x in _corrections(a) if x.ref == ref), None)
+    if c is None:
+        return page(a, token, "/corrections", "Correction",
+                    alert("<h2>No such correction on this record</h2>", "b"),
+                    crumb="Manage / Corrections")
+
+    tone = {C.READY: "g", C.RETURNED: "a", C.SUBMITTED: "b"}[c.state]
+    if c.state == C.READY:
+        head = alert(f"<h2>Checked &mdash; ready to file</h2>"
+                     f"<p>All {c.passed} checks pass. EPFO's own validation "
+                     f"tests the same things.</p>", tone)
+    else:
+        need = "".join(f"<li>{esc(x.detail)}</li>" for x in c.outstanding)
+        head = alert(f"<h2>One more thing needed</h2><ul "
+                     f'style="margin:6px 0 0 18px">{need}</ul>', tone)
+
+    what = card("The correction", kv([
+        ("Reference", f"<code>{esc(c.ref)}</code>"),
+        ("Establishment", esc(c.employer)),
+        ("Member ID", f"<code>{esc(c.member_id)}</code>"),
+        ("Field", esc(c.field_name)),
+        ("Currently", _d(c.current)),
+        ("Changing to", f"<strong>{_d(c.proposed)}</strong>"),
+        ("Supporting document", esc(c.evidence)),
+        ("Status", pill(c.state_word,
+                        "ok" if c.state == C.READY else "hm")),
+    ]))
+
+    items = ""
+    for x in c.checks:
+        items += (f"<li>{CHECK_MARK[x.ok]}<span><strong>{esc(x.name)}</strong>"
+                  f'<span class="m">{esc(x.detail)}</span></span></li>')
+    checked = card("What we checked",
+                   f'<ul class="gt">{items}</ul>'
+                   '<p class="sub" style="margin-top:12px">We check the '
+                   "<strong>correction</strong>, not the document. We cannot "
+                   "read your appointment letter, and saying otherwise would "
+                   "be a guess dressed up as a verification.</p>")
+
+    nxt = ""
+    if c.state == C.READY:
+        nxt = card("What happens next", kv([
+            ("Where to file",
+             "UAN member portal &rarr; Manage &rarr; Joint Declaration"),
+            ("Attach", esc(c.evidence)),
+            ("EPFO's published limit", f"{C.SLA_DAYS} days"),
+            ("Who decides", "EPFO. We do not submit anything for you."),
+        ]) + f'<p style="margin-top:14px">'
+             f'<a class="btn" href="/outcome?s={esc(token)}">'
+             f"Preview the outcome</a></p>", quiet=True)
+
+    return page(a, token, "/corrections", "Correction",
+                head + what + checked + nxt,
+                crumb="Manage / Corrections / " + c.ref)
+
+
+# ---------------------------------------------------------------------------
+# What the record looks like once the corrections are accepted
+# ---------------------------------------------------------------------------
+# The only simulated step in the product, and it is labelled on the page rather
+# than in a footnote. Everything it shows is genuinely recomputed: the service
+# history is rebuilt with the corrected dates and every parser and the
+# reconciler run again from the original documents.
+
+def page_outcome(a, token="sample"):
+    ready = [c for c in _corrections(a) if c.state == C.READY]
+    if not ready:
+        return page(a, token, "/corrections", "Preview the outcome",
+                    alert("<h2>Nothing ready to preview</h2>"
+                          "<p>A correction has to pass its checks first.</p>",
+                          "b"), crumb="Manage / Corrections / Outcome")
+
+    after = C.apply_corrections(a, ready)
+    if after is None:
+        return page(a, token, "/corrections", "Preview the outcome",
+                    alert("<h2>Could not recompute</h2>"
+                          "<p>The corrected dates did not reconcile against "
+                          "your documents.</p>", "r"),
+                    crumb="Manage / Corrections / Outcome")
+
+    g0, g1 = solver.gates(a), solver.gates(after)
+    b0, b1 = solver.blocking_failures(g0), solver.blocking_failures(g1)
+    cleared = [x for x in b0 if x.code not in {y.code for y in b1}]
+
+    banner = alert(
+        "<h2>This is a preview</h2><p>Nothing has been submitted. This is what "
+        "your record looks like <em>if</em> EPFO accepts the correction"
+        f"{'s' if len(ready) > 1 else ''} &mdash; recomputed from your "
+        "documents, not a flag we set.</p>", "a")
+
+    rows = [[esc(x.code), esc(x.name),
+             pill("Fails", "no"), pill("Passes", "ok")] for x in cleared]
+    still = [[esc(x.code), esc(x.name), pill("Fails", "no"),
+              pill("Still fails", "no")] for x in b1]
+
+    verdict = (alert(f"<h2>Claim would settle</h2>"
+                     f"<p>{len(cleared)} blocking check"
+                     f"{'s' if len(cleared) != 1 else ''} cleared.</p>", "g")
+               if not b1 else
+               alert(f"<h2>Still blocked</h2><p>{len(b1)} check"
+                     f"{'s' if len(b1) != 1 else ''} would still fail.</p>", "r"))
+
+    table_card = ""
+    if rows or still:
+        table_card = card("What changes",
+                          table(["", "Check", "Now", "After"], rows + still))
+
+    adv = solver.advisory_failures(g1)
+    left = ""
+    if adv:
+        left = card("Still worth doing",
+                    "<ul class=\"rz\">"
+                    + "".join(f"<li>{esc(x.detail or x.name)}</li>" for x in adv)
+                    + "</ul>"
+                    + f'<p class="sub" style="margin-top:10px">This does not '
+                      f"block the claim, but it is your money. "
+                      f'<a href="/transfer?s={esc(token)}">Bring it across</a>'
+                      "</p>", quiet=True)
+
+    forms = card("Claim forms", table(["Form", "Now", "After"], [
+        ["Form 31 &mdash; Advance",
+         pill("Blocked", "no") if b0 else pill("Open", "ok"),
+         pill("Blocked", "no") if b1 else pill("Open", "ok")],
+        ["Form 19 &mdash; Final settlement",
+         pill("Blocked", "no") if b0 else pill("Open", "ok"),
+         pill("Blocked", "no") if b1 else pill("Open", "ok")],
+        ["Form 10C &mdash; Pension withdrawal",
+         pill("Blocked", "no") if b0 else pill("Open", "ok"),
+         pill("Blocked", "no") if b1 else pill("Open", "ok")],
+    ]), quiet=True)
+
+    return page(a, token, "/corrections", "Preview the outcome",
+                banner + verdict + table_card + forms + left,
+                crumb="Manage / Corrections / Outcome")
