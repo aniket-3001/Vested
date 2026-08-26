@@ -8,6 +8,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # A run can be lost to a runner fault rather than anything in the tree -
+  # startup_failure, or a job cancelled before a single step executes. Without
+  # a manual trigger the only way to recover is an empty commit, which puts
+  # noise in the history to work around someone else's outage.
+  workflow_dispatch:
 
 # Sessions are process-local and the service runs at --max-instances 1, so two
 # deploys must never overlap on the same service. Queue them instead, and do
