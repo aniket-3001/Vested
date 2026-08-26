@@ -122,6 +122,28 @@ ACCOUNTS = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Past claims
+# ---------------------------------------------------------------------------
+# EPFO's own tracker shows a status word and no reason, so a member refiles the
+# same broken claim and is rejected again. Rahul's history has that exact
+# shape; Priya has never filed.
+
+from datetime import date as _date  # noqa: E402
+
+CLAIM_HISTORY = {
+    "100999888777": [
+        {"tracking_id": "100999888777401001", "form": "Form-19",
+         "filed": _date(2021, 10, 8), "sent": _date(2021, 10, 9),
+         "status": "Claim Rejected"},
+        {"tracking_id": "100999888777404001", "form": "Form-10C",
+         "filed": _date(2021, 10, 9), "sent": _date(2021, 10, 10),
+         "status": "Claim Rejected"},
+    ],
+    "100777666555": [],
+}
+
+
 _cache: dict = {}
 
 
@@ -142,6 +164,7 @@ def build(uan: str):
         # re-reconciles the record the same way it does for a real upload.
         a.docs = {"26as": args["text_26as"], "passbook": args["passbooks"],
                   "service_history": args["service_history"], "bank": args["bank"]}
+        a.claim_history = CLAIM_HISTORY.get(uan, [])
         _cache[uan] = a
     return _cache[uan]
 

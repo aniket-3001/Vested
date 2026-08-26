@@ -352,6 +352,11 @@ class Analysis:
     # assertion - but the member should be told which of the two it is.
     history_typed: bool = False
     worklist: list = field(default_factory=list)
+    # Raw evidence and EPFO's assertion, retained for the timeline view.
+    observations: list = field(default_factory=list)
+    asserted: list = field(default_factory=list)
+    # Claims already filed. Read only; we never write to it.
+    claim_history: list = field(default_factory=list)
     # PF account numbers printed inside a passbook that are not themselves one
     # of the accounts we could read. Reported, never interpreted.
     related_ids: list = field(default_factory=list)
@@ -773,6 +778,10 @@ def analyse(
     ]
 
     a.result = Reconciler(observations, asserted, TODAY).run()
+    # Kept so the timeline view can redraw the evidence without
+    # re-reading the documents. Same memory-only lifetime as the rest.
+    a.observations = list(observations)
+    a.asserted = list(asserted)
     assert_no_denial_path(a.result)
 
     # An ORPHAN_ACCOUNT finding means "employment evidence with no linked member
