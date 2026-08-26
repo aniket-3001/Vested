@@ -189,15 +189,18 @@ def main() -> int:
         content_type="multipart/form-data")
     tok = re.search(r"s=([A-Za-z0-9_-]+)", up.headers["Location"]).group(1)
     home = c.get(f"/home?s={tok}").get_data(as_text=True)
-    rec = c.get(f"/record?s={tok}").get_data(as_text=True)
+    rec = c.get(f"/corrections?s={tok}").get_data(as_text=True)
     checks += [
-        ("the verdict is No, not 'not yet known'", "<h1>No</h1>" in home),
-        ("the home page still says dates were not checked",
-         "not</strong> checked" in home),
-        ("the finding is on the record page in plain language",
-         "deducted tax but deposited no PF" in rec),
-        ("a clean-contribution record says so rather than staying silent",
-         "every month an employer deducted tax" in
+        # A provable finding outranks an incomplete check. Rendering "not yet
+        # known" here would bury a defect we can actually demonstrate.
+        ("the verdict is a rejection, not 'not yet known'",
+         "would be rejected" in home and "Not yet checked" not in home),
+        ("the home page still admits the dates were not checked",
+         "service history has not been checked" in home),
+        ("the finding reaches the repair plan",
+         "Raise the missing contributions" in rec),
+        ("a clean-contribution record is not called rejected",
+         "would be rejected" not in
          c.get("/home?s=" + re.search(r"s=([A-Za-z0-9_-]+)", c.post(
              "/analyse", data={
                  "f26as": [(io.BytesIO(E.SAMPLE_26AS.encode()), "26as.txt")],

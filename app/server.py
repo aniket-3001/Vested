@@ -1,45 +1,37 @@
 """
-Vested - web layer.
+Vested - the web layer. Deliberately thin.
 
-Deliberately thin. Every decision shown to the user is made in engine.py, which
-delegates to the modules the test suite exercises. Nothing is reasoned about here.
+Every decision shown to a member is made in engine.py or solver.py, both of
+which the test suite exercises directly. Nothing is reasoned about here.
 
 Uploaded documents are held in memory for the length of one session and are
-never written to disk. Sessions expire; there is no database.
+never written to disk. Sessions expire. There is no database.
 
-Local:       python app/server.py
-Production:  waitress-serve --port=$PORT --call app.server:create_app
-             gunicorn "app.server:create_app()"
+    Local:       python app/server.py
+    Production:  gunicorn "app.server:create_app()"
 """
 
 from __future__ import annotations
 
-import sys as _s, pathlib as _p
+import sys as _s
+import pathlib as _p
 _s.path.insert(0, str(_p.Path(__file__).resolve().parent.parent))
 
 import os
 import secrets
-import sys
 import time
-from pathlib import Path
-
 
 from flask import Flask, abort, redirect, request  # noqa: E402
 
-from app import demo, manage, views
+from app import demo, history, portal, screens  # noqa: E402
 from app.engine import analyse, extract_names  # noqa: E402
 from app.ingest import sort_uploads  # noqa: E402
 
-SESSION_TTL = 30 * 60          # seconds
-MAX_CONTENT = 24 * 1024 * 1024  # total upload size per request
+SESSION_TTL = 30 * 60
+MAX_CONTENT = 24 * 1024 * 1024
 
-# token -> (expires_at, Analysis). Memory only, by design: nothing a member
-# uploads should outlive their visit, and there is nothing here to breach.
+# token -> (expires_at, Analysis). Memory only, by design.
 _sessions: dict[str, tuple[float, object]] = {}
-
-# The sample analysis is deterministic and contains no personal data, so it is
-# computed once and shared.
-_sample = None
 
 
 def _reap() -> None:
@@ -49,37 +41,34 @@ def _reap() -> None:
 
 
 def _store(a, docs: dict | None = None, token: str | None = None) -> str:
-    """
-    Keep the analysis, and the documents it was built from.
-
-    The documents are held so that a member who later types in their service
-    history can have the whole record re-reconciled against it, rather than
-    being told to upload everything again. Same memory-only lifetime, same
-    expiry - nothing is written to disk.
-    """
     _reap()
     token = token or secrets.token_urlsafe(16)
-    a.docs = docs if docs is not None else getattr(a, "docs", None)
+    if docs is not None:
+        a.docs = docs
     _sessions[token] = (time.time() + SESSION_TTL, a)
     return token
 
 
-def _load(token: str | None):
+# The sample analysis is deterministic and holds no personal data, so it is
+# computed once and shared.
+_sample = None
+
+
+def _load(token: str):
+    # Demo accounts are synthetic and deterministic, so they need no expiry and
+    # survive a restart - which matters when a judge opens the link an hour
+    # after reading about it.
     global _sample
-    if not token or token == "sample":
-        if _sample is None:
-            _sample = analyse()
-        return _sample
-    # Demo accounts are addressed by UAN rather than a session token. They are
-    # synthetic and deterministic, so they need no expiry and survive a restart -
-    # which matters when a judge opens a link an hour after reading about it.
     if token in demo.ACCOUNTS:
         return demo.build(token)
+    if token == "sample":
+        if _sample is None:
+            _sample = analyse()
+            _sample.claim_history = demo.CLAIM_HISTORY.get("100999888777", [])
+        return _sample
     _reap()
     entry = _sessions.get(token)
-    if entry is None:
-        return None
-    return entry[1]
+    return entry[1] if entry else None
 
 
 def _token() -> str:
@@ -90,238 +79,182 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT
 
+    # ---- static ----------------------------------------------------------
     @app.get("/s/<name>.css")
     def stylesheet(name: str):
-        # Content-hashed URL, so this can be cached hard and still never go
-        # stale across a redeploy.
-        if name != views.CSS_HASH:
+        if name != portal.CSS_HASH:
             abort(404)
         return app.response_class(
-            views.CSS, mimetype="text/css",
+            portal.CSS, mimetype="text/css",
             headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
+    # ---- sign in ---------------------------------------------------------
     @app.get("/")
     def index():
         return redirect("/login", code=302)
 
     @app.get("/login")
     def login():
-        return views.page_login()
+        return screens.page_login()
 
     @app.post("/login")
     def do_login():
         uan = demo.authenticate(request.form.get("uan", ""),
                                 request.form.get("password", ""))
         if uan is None:
-            return views.page_login("That UAN and password do not match. The "
-                                    "working credentials are listed below."), 401
+            return screens.page_login(
+                "That UAN and password do not match."), 401
         return redirect(f"/home?s={uan}", code=303)
 
+    # ---- upload ----------------------------------------------------------
     @app.get("/upload")
     def start():
-        return views.page_start()
+        return screens.page_upload()
 
     @app.post("/analyse")
     def run():
         if request.form.get("mode") == "sample":
             return redirect("/home?s=sample", code=303)
-
         files = []
         for key in ("f26as", "passbook", "history", "bank"):
             for fs in request.files.getlist(key):
                 if fs and fs.filename:
                     files.append((fs.filename, fs.read()))
         if not files:
-            return views.page_upload_problem(
-                [], ["Form 26AS", "PF passbook", "service history"],
-                "No files were selected.")
-
+            return screens.page_upload("No files selected.")
         sorted_up = sort_uploads(files, request.form.get("password") or None)
         f = sorted_up["found"]
-        if sorted_up["missing"]:
-            return views.page_upload_problem(
-                sorted_up["report"], sorted_up["missing"], None)
-
         try:
             a = analyse(
                 text_26as=f["26as"] or "",
                 passbooks=f["passbook"] or [],
                 service_history=f["service_history"] or "",
                 bank=f["bank"] or "",
-                names=extract_names(f),
-            )
+                names=extract_names(f))
             a.reduced = sorted_up.get("reduced", [])
         except Exception:
-            # Never surface a stack trace, and never log document content.
-            return views.page_upload_problem(
-                sorted_up["report"], [],
-                "Your documents were read, but we could not make sense of the "
-                "layout. This usually means a format we have not seen yet.")
+            # Never surface a stack trace, never log document content.
+            return screens.page_upload(
+                "Those documents were read, but we could not make sense of "
+                "the layout.")
         return redirect(f"/home?s={_store(a, docs=dict(f))}", code=303)
 
+    # ---- session helper --------------------------------------------------
     def _need():
-        """Load the session or hand back the expired page."""
         a = _load(_token())
-        return a, (None if a else (views.page_expired(), 410))
+        return a, (None if a else (screens.page_expired(), 410))
 
-    @app.get("/home")
-    def home():
+    def simple(path, fn, **kw):
+        """Register a GET page that needs a live session."""
+        def view(_fn=fn, _kw=kw):
+            a, gone = _need()
+            return gone or _fn(a, _token(), **_kw)
+        view.__name__ = "v" + path.replace("/", "_").replace("-", "_")
+        app.add_url_rule(path, view_func=view)
+
+    # ---- section landings ------------------------------------------------
+    for _href in ("/view", "/manage", "/account", "/services"):
+        def _section(_h=_href):
+            a, gone = _need()
+            return gone or screens.page_section(a, _token(), _h)
+        _section.__name__ = "sec" + _href.replace("/", "_")
+        app.add_url_rule(_href, view_func=_section)
+
+    # ---- pages -----------------------------------------------------------
+    simple("/home", screens.page_home)
+    simple("/profile", screens.page_profile)
+    simple("/uan-card", screens.page_uan_card)
+    simple("/passbook-lite", screens.page_passbook_lite)
+    simple("/passbook", screens.page_passbook)
+    simple("/timeline", screens.page_timeline)
+    simple("/kyc", screens.page_kyc)
+    simple("/contact", screens.page_contact)
+    simple("/nomination", screens.page_nomination)
+    simple("/exit", screens.page_exit)
+    simple("/corrections", screens.page_corrections)
+    simple("/password", screens.page_password)
+    simple("/notifications", screens.page_notifications)
+    simple("/history", screens.page_history)
+    simple("/claim", screens.page_claim)
+    simple("/claim-10d", screens.page_claim_10d)
+    simple("/transfer", screens.page_transfer)
+    simple("/track", screens.page_track)
+    simple("/track-old", screens.page_track_old)
+    simple("/scheme-certificate", screens.page_scheme_cert)
+    simple("/check", screens.page_check)
+    simple("/why-rejected", screens.page_why)
+    simple("/privacy", screens.page_privacy)
+
+    for _p2 in ("/pmvbry", "/pmvbry-flc", "/pmvbry-cert"):
+        def _pm(_h=_p2):
+            a, gone = _need()
+            return gone or screens.page_pmvbry(a, _token(), _h)
+        _pm.__name__ = "pm" + _p2.replace("/", "_").replace("-", "_")
+        app.add_url_rule(_p2, view_func=_pm)
+
+    # ---- joint declaration ----------------------------------------------
+    @app.get("/joint-declaration")
+    def jd():
         a, gone = _need()
-        return gone or views.page_home(a, _token())
+        return gone or screens.page_joint_declaration(a, _token())
 
-    @app.get("/record")
-    @app.get("/result")            # earlier URL, kept working
-    def record():
+    @app.post("/joint-declaration")
+    def jd_post():
         a, gone = _need()
-        return gone or views.page_result(a, _token())
+        if gone:
+            return gone
+        # Nothing is sent anywhere. The reference number is issued locally so
+        # the member can see what the flow would look like, and the page says
+        # so rather than implying a filing happened.
+        ref = "JD" + secrets.token_hex(4).upper()
+        return screens.page_joint_declaration(a, _token(), submitted=ref)
 
-    @app.get("/accounts")
-    def accounts():
+    # ---- typing in the service history ----------------------------------
+    @app.get("/history-entry")
+    def hist_entry():
         a, gone = _need()
-        return gone or views.page_accounts(a, _token())
+        return gone or screens.page_history_entry(a, _token())
 
-    @app.get("/account/<member_id>")
-    def account(member_id: str):
-        a, gone = _need()
-        return gone or views.page_account(a, member_id, _token())
-
-    @app.get("/fix/<key>")
-    @app.get("/finding/<key>")     # earlier URL, kept working
-    def fix(key: str):
-        a, gone = _need()
-        return gone or views.page_finding(a, key, _token())
-
-    @app.get("/recover/<tan>")
-    @app.get("/orphan/<tan>")      # earlier URL, kept working
-    def recover(tan: str):
-        a, gone = _need()
-        return gone or views.page_orphan(a, tan, _token())
-
-    @app.get("/profile")
-    def profile():
-        a, gone = _need()
-        return gone or views.page_profile(a, _token())
-
-    @app.get("/pension")
-    def pension():
-        a, gone = _need()
-        return gone or views.page_pension(a, _token())
-
-    @app.get("/withdraw")
-    def withdraw():
-        a, gone = _need()
-        return gone or views.page_withdraw(a, _token())
-
-    # The half of the member portal that does things rather than showing them.
-    @app.get("/manage")
-    def manage_hub():
-        a, gone = _need()
-        return gone or manage.page_manage(a, _token())
-
-    @app.get("/kyc")
-    def kyc():
-        a, gone = _need()
-        return gone or manage.page_kyc(a, _token())
-
-    @app.get("/exit")
-    def mark_exit():
-        a, gone = _need()
-        return gone or manage.page_exit(a, _token())
-
-    @app.get("/nomination")
-    def nomination():
-        a, gone = _need()
-        return gone or manage.page_nomination(a, _token())
-
-    @app.get("/transfer")
-    def transfer():
-        a, gone = _need()
-        return gone or manage.page_transfer(a, _token())
-
-    @app.get("/uan-card")
-    def uan_card():
-        a, gone = _need()
-        return gone or manage.page_uan_card(a, _token())
-
-    @app.get("/contact")
-    def contact():
-        a, gone = _need()
-        return gone or manage.page_contact(a, _token())
-
-    @app.get("/history")
-    def history():
-        a, gone = _need()
-        return gone or manage.page_history(a, _token())
-
-    @app.post("/history")
-    def save_history():
+    @app.post("/history-entry")
+    def hist_save():
         a, gone = _need()
         if gone:
             return gone
         tok = _token()
         accounts = [ac for ac in a.accounts if not ac.orphan]
-        rows, errors = manage.read_history_form(request.form, accounts)
+        rows, errors = history.read_history_form(request.form, accounts)
         if errors:
-            return manage.page_history(a, tok, errors, request.form), 400
-
-        # Re-reconcile the whole record against the dates just typed. The demo
-        # accounts are shared and deterministic, so a member editing one must
-        # get their own session rather than mutating what everyone else sees.
+            return screens.page_history_entry(a, tok, errors, request.form), 400
         docs = getattr(a, "docs", None) or {}
         try:
             fresh = analyse(
                 text_26as=docs.get("26as") or "",
                 passbooks=docs.get("passbook") or [],
-                service_history=manage.build_history_text(rows),
+                service_history=history.build_history_text(rows),
                 bank=docs.get("bank") or "",
-                names=extract_names(docs) if docs else None,
-            )
+                names=extract_names(docs) if docs else None)
         except Exception:
-            return manage.page_history(
+            return screens.page_history_entry(
                 a, tok, ["Those dates could not be reconciled against your "
-                         "documents. Check them and try again."],
-                request.form), 400
-
-        fresh.reduced = [r for r in getattr(a, "reduced", [])
-                         if "service history" not in r.lower()]
+                         "documents."], request.form), 400
         fresh.history_typed = True
+        fresh.claim_history = getattr(a, "claim_history", [])
+        # A demo account is shared, so editing one must not mutate what every
+        # other visitor sees. Give the editor their own session instead.
         own = None if (tok == "sample" or tok in demo.ACCOUNTS) else tok
-        return redirect(f"/record?s={_store(fresh, docs=docs, token=own)}", code=303)
+        return redirect(f"/home?s={_store(fresh, docs=docs, token=own)}", code=303)
 
-    @app.get("/privacy")
-    def privacy():
-        a = _load(_token())
-        return views.page_privacy(a, _token())
-
-    @app.get("/claim")
-    def claim():
-        a, gone = _need()
-        return gone or views.page_claim(a, _token())
-
-    @app.get("/track")
-    def track():
-        a, gone = _need()
-        return gone or views.page_track(a, _token())
-
+    # ---- health ----------------------------------------------------------
     # NOTE: /healthz is intercepted upstream on Cloud Run and never reaches the
-    # container. /status is the real endpoint; /healthz kept for other hosts.
+    # container. /status is the real endpoint.
     @app.get("/status")
     @app.get("/healthz")
     def healthz():
-        a = _load("sample")
-        return {
-            "ok": True,
-            "backend": a.backend,
-            "status": a.result["claim_status"],
-            "blocking": a.result["blocking_count"],
-            "sessions": len(_sessions),
-        }
+        return {"ok": True, "sessions": len(_sessions)}
 
     @app.errorhandler(413)
-    def too_large(_):
-        return views.page_upload_problem(
-            [], [], "Those files are too large. Download them again from the "
-                    "portal rather than scanning printouts."), 413
+    def too_big(_e):
+        return screens.page_upload("Those files are too large."), 413
 
     return app
 

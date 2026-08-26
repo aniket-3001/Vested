@@ -30,7 +30,7 @@ _s.path.insert(0, str(_p.Path(__file__).resolve().parent.parent))
 
 import app.server as S
 from app.engine import SAMPLE_26AS, SAMPLE_PASSBOOKS
-from app.manage import build_history_text, read_history_form
+from app.history import build_history_text, read_history_form
 from app.server import create_app
 from core.parsers import parse_service_history
 
@@ -103,32 +103,32 @@ def main() -> int:
     # ---- end to end: the verdict changes ----------------------------------
     tok = upload(c)
     before = c.get(f"/home?s={tok}").get_data(as_text=True)
-    form = c.get(f"/history?s={tok}").get_data(as_text=True)
+    form = c.get(f"/history-entry?s={tok}").get_data(as_text=True)
     checks += [
         ("without a history the verdict is not yet known",
-         "<h1>Not yet known</h1>" in before),
-        ("the home page offers the way out", "/history?s=" in before),
+         "Not yet checked" in before),
+        ("the home page offers the way out", "/history-entry?s=" in before),
         ("the form has a row per account",
          len(re.findall(r'name="doj\d+"', form)) == 2),
         ("member IDs are filled in already", ACCOUNTS[0].member_id in form),
         ("it explains why we cannot read a screenshot",
          "screenshot" in form),
         ("it is clear these are EPFO's dates, not ours",
-         "EPFO&rsquo;s claim about you" in form),
+         "EPFO&rsquo;s dates" in form),
     ]
 
-    posted = c.post(f"/history?s={tok}", data={
+    posted = c.post(f"/history-entry?s={tok}", data={
         "doj0": "01-04-2020", "doe0": "30-11-2020", "doj1": "01-05-2021"})
     tok2 = re.search(r"s=([A-Za-z0-9_-]+)", posted.headers["Location"]).group(1)
     a2 = S._load(tok2)
     kinds = [x["kind"] for x in a2.result["contradictions"]]
     checks += [
         ("saving redirects to the record", posted.status_code == 303
-         and "/record" in posted.headers["Location"]),
+         and "/home" in posted.headers["Location"]),
         ("the dates are now checked", a2.dates_checked),
         ("the record knows they were typed", a2.history_typed),
         ("a real verdict replaces 'not yet known'",
-         "<h1>No</h1>" in c.get(f"/home?s={tok2}").get_data(as_text=True)),
+         "would be rejected" in c.get(f"/home?s={tok2}").get_data(as_text=True)),
         ("date findings appear", "EXIT_TOO_EARLY" in kinds),
         ("a missing exit is found", "MISSING_EXIT" in kinds),
         # The orphan check needs a service history to distinguish a forgotten
@@ -141,7 +141,7 @@ def main() -> int:
          len(a2.accounts) == len(S._load(tok).accounts)),
     ]
 
-    bad = c.post(f"/history?s={tok}", data={"doj0": "nonsense"})
+    bad = c.post(f"/history-entry?s={tok}", data={"doj0": "nonsense"})
     checks += [
         ("bad input returns the form, not a redirect", bad.status_code == 400),
         ("what was typed is preserved for correction",
@@ -150,23 +150,24 @@ def main() -> int:
 
     # ---- the shared demo accounts must not be mutated ----------------------
     before_demo = [x["kind"] for x in S._load("100777666555").result["contradictions"]]
-    c.post("/history?s=100777666555", data={"doj0": "01-06-2021", "doe0": "31-05-2022"})
+    c.post("/history-entry?s=100777666555", data={"doj0": "01-06-2021", "doe0": "31-05-2022"})
     after_demo = [x["kind"] for x in S._load("100777666555").result["contradictions"]]
     checks += [
         ("editing a demo account does not change it for everyone",
          before_demo == after_demo),
         ("the demo account still reads as clean",
-         c.get("/home?s=100777666555").get_data(as_text=True).count("<h1>Yes</h1>") == 1),
+         "should settle" in c.get("/home?s=100777666555").get_data(as_text=True)),
         ("a demo account can still be edited into a private session",
-         c.post("/history?s=100999888777",
+         c.post("/history-entry?s=100999888777",
                 data={"doj0": "01-04-2020"}).status_code == 303),
     ]
 
     # ---- every page still renders after a typed history --------------------
     ok = []
-    for p in ["/home", "/record", "/accounts", "/pension", "/withdraw", "/claim",
-              "/manage", "/kyc", "/exit", "/nomination", "/transfer",
-              "/uan-card", "/contact", "/history", "/track", "/profile"]:
+    for p in ["/home", "/timeline", "/check", "/corrections", "/passbook",
+              "/claim", "/claim-10d", "/manage", "/kyc", "/exit", "/nomination",
+              "/transfer", "/uan-card", "/contact", "/history", "/track",
+              "/profile", "/why-rejected", "/notifications"]:
         r = c.get(f"{p}?s={tok2}")
         b = r.get_data(as_text=True)
         ok.append(r.status_code == 200 and len(b) > 500 and "Traceback" not in b)

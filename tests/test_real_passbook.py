@@ -201,8 +201,8 @@ def main() -> int:
         content_type="multipart/form-data")
     tok = _re.search(r"s=([A-Za-z0-9_-]+)", up.headers.get("Location", "")).group(1)
     pages_ok, danger = [], []
-    for path in ["/home", "/record", "/accounts", "/pension", "/withdraw",
-                 "/claim", "/track", "/profile"]:
+    for path in ["/home", "/timeline", "/check", "/corrections", "/passbook",
+                 "/claim", "/claim-10d", "/track", "/profile"]:
         resp = cli.get(f"{path}?s={tok}")
         body = resp.get_data(as_text=True)
         pages_ok.append(resp.status_code == 200 and len(body) > 500)
