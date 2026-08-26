@@ -163,6 +163,52 @@ def main() -> int:
          "Not yet known" in get("/exit", un)),
     ]
 
+    # ---- the two-month wait, enforced rather than only described ---------
+    # The page stated this rule for weeks without checking it, which would send
+    # a member to a form EPFO turns away.
+    from app.solver import Reconstructed, SELF_EXIT_WAIT_MONTHS, TODAY
+    from datetime import date
+
+    def missing(last):
+        return Reconstructed(key="K", employer="E", member_id="M",
+                             asserted_doj=date(2020, 1, 1), asserted_doe=None,
+                             first_seen=date(2020, 1, 1), last_seen=last,
+                             exit_best=last, sources=("EPF_CONTRIB",),
+                             verdict="exit_missing")
+
+    def _plus_two(d):
+        y, m = d.year, d.month + SELF_EXIT_WAIT_MONTHS
+        return date(y + (m - 1) // 12, (m - 1) % 12 + 1, 1)
+
+    def months_ago(n):
+        y, m = TODAY.year, TODAY.month - n
+        while m < 1:
+            m += 12
+            y -= 1
+        return date(y, m, 15)
+
+    checks += [
+        ("a contribution last month blocks self-service",
+         not missing(months_ago(1)).self_service_ready),
+        ("exactly two months opens it",
+         missing(months_ago(SELF_EXIT_WAIT_MONTHS)).self_service_ready),
+        ("an old contribution is obviously fine",
+         missing(months_ago(30)).self_service_ready),
+        ("a blocked one names the date it opens",
+         missing(months_ago(1)).wait_until is not None),
+        ("a ready one names no wait", missing(months_ago(6)).wait_until is None),
+        # wait_until only exists while the wait is still running, so the
+        # arithmetic has to be checked against a recent contribution.
+        ("the wait date is two months after the last contribution",
+         missing(months_ago(1)).wait_until
+         == _plus_two(months_ago(1))),
+        ("a contribution this month waits longest",
+         missing(months_ago(0)).wait_until == _plus_two(months_ago(0))),
+        # The demo record's evidence is years old, so the page still offers it.
+        ("the demo record is still offered self-service",
+         "You can do this yourself" in ex),
+    ]
+
     # ---- Joint Declaration ------------------------------------------------
     jd = get("/joint-declaration", BAD)
     checks += [

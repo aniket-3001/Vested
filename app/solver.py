@@ -29,6 +29,7 @@ import calendar
 from dataclasses import dataclass, field
 from datetime import date
 
+from app.engine import TODAY
 from core import reconcile as R
 from core.epfo_rules import AUTO_SETTLE_CEILING
 
@@ -42,6 +43,7 @@ ROUTE_DAYS = {
     R.CLAIM_ORPHAN: 20,
 }
 ATTESTED_JD_DAYS = 30      # closed establishment: attestation adds a fortnight
+SELF_EXIT_WAIT_MONTHS = 2  # EPFO blocks a self-marked exit until then
 
 SOURCE_LABEL = {
     "EPFO_SERVICE": "EPFO record",
@@ -100,6 +102,29 @@ class Reconstructed:
     exit_best: date | None
     sources: tuple[str, ...]
     verdict: str            # agrees | exit_wrong | exit_missing | join_wrong
+
+    @property
+    def self_service_ready(self) -> bool:
+        """
+        EPFO only accepts a self-marked exit once two months have passed since
+        the last contribution - until then the system reads the job as running.
+        We stated that rule on the page for months without checking it, which
+        would send somebody to a screen that refuses them.
+        """
+        if self.verdict != "exit_missing":
+            return False
+        m = ((TODAY.year - self.last_seen.year) * 12
+             + TODAY.month - self.last_seen.month)
+        return m >= SELF_EXIT_WAIT_MONTHS
+
+    @property
+    def wait_until(self) -> date | None:
+        """The date Mark Exit opens, when it has not opened yet."""
+        if self.verdict != "exit_missing" or self.self_service_ready:
+            return None
+        y, m = self.last_seen.year, self.last_seen.month + SELF_EXIT_WAIT_MONTHS
+        y, m = y + (m - 1) // 12, (m - 1) % 12 + 1
+        return date(y, m, 1)
 
     @property
     def confidence(self) -> str:

@@ -25,7 +25,7 @@ from app.portal import (MENUS, OK, NO, UNKNOWN, alert, bare, card, esc, kv,
 from app import solver
 from core.epfo_rules import AUTO_SETTLE_CEILING, settlement_verdict
 
-TODAY = date(2026, 8, 26)
+from app.engine import TODAY  # one source of truth for "now"
 
 
 def _who(a) -> tuple[str, str]:
@@ -726,17 +726,36 @@ def page_exit(a, token="sample"):
         return page(a, token, "/exit", "Mark Exit",
                     alert("<h2>Nothing to mark</h2>", "g"),
                     crumb="Manage / Mark Exit")
+    # EPFO refuses a self-marked exit until two months have passed since the
+    # last contribution. Offering the screen before then sends somebody to a
+    # form that turns them away.
+    ready = [r for r in recs if r.self_service_ready]
+    waiting = [r for r in recs if not r.self_service_ready]
+
     rows = [[esc(r.employer), f"<code>{esc(r.member_id)}</code>",
              f"<strong>{_d(r.exit_best)}</strong>",
              pill(r.confidence, "ok" if r.confidence == "High" else "hm"),
-             ", ".join(esc(s) for s in r.source_names)] for r in recs]
+             ", ".join(esc(s) for s in r.source_names)] for r in ready]
+
+    head = (alert("<h2>You can do this yourself</h2><p>No employer approval "
+                  "needed.</p>", "g") if ready else "")
+    dates = (card("Dates to enter",
+                  table(["Establishment", "Member ID", "Date of exit",
+                         "Confidence", "From"], rows)) if ready else "")
+
+    hold = ""
+    if waiting:
+        wrows = [[esc(r.employer), _d(r.last_seen),
+                  f"<strong>{_d(r.wait_until)}</strong>"] for r in waiting]
+        hold = (alert("<h2>Not yet &mdash; two months must pass</h2>"
+                      "<p>EPFO reads a recent contribution as a job still "
+                      "running.</p>", "a")
+                + card("Opens later",
+                       table(["Establishment", "Last contribution",
+                              "You can mark exit from"], wrows)))
+
     return page(a, token, "/exit", "Mark Exit",
-                alert("<h2>You can do this yourself</h2><p>No employer approval "
-                      "needed once two months have passed since the last "
-                      "contribution.</p>", "g")
-                + card("Dates to enter",
-                       table(["Establishment", "Member ID", "Date of exit",
-                              "Confidence", "From"], rows))
+                head + hold + dates
                 + card("Before you submit",
                        kv([("Attempts allowed", "One &mdash; it cannot be changed after"),
                            ("Verified by", "OTP to your Aadhaar-linked mobile"),
@@ -854,12 +873,18 @@ def default_events(a) -> list[dict]:
                      f"Estimated {p.critical_days} days to clear if done in "
                      f"order.")})
     for r in solver.reconstruct(a):
-        if r.verdict == "exit_missing":
+        if r.verdict == "exit_missing" and r.self_service_ready:
             out.append({
                 "on": TODAY, "kind": "You can fix this", "tone": "hm",
                 "subject": f"Exit date missing for {r.employer}",
                 "body": (f"Mark Exit accepts {_d(r.exit_best)}. "
                          "No employer approval needed.")})
+        elif r.verdict == "exit_missing":
+            out.append({
+                "on": TODAY, "kind": "Wait", "tone": "nu2",
+                "subject": f"Exit date missing for {r.employer}",
+                "body": (f"Mark Exit opens on {_d(r.wait_until)}, two months "
+                         "after the last contribution.")})
     for c in getattr(a, "claim_history", []) or []:
         if "reject" in c["status"].lower():
             out.append({

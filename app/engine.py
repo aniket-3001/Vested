@@ -46,7 +46,12 @@ from core.orphan import (  # noqa: E402
 from app.models import get_backend  # noqa: E402
 from app.name_match import compare, worst_pair  # noqa: E402
 
-TODAY = date(2025, 8, 20)
+# The real date, not a pinned one. Every rule that reasons about elapsed time
+# depends on it: whether two months have passed since the last contribution,
+# how much interest an untraced account has accrued, whether an open exit date
+# means "still employed" or "nobody closed it". A hardcoded date silently rots,
+# and this one had drifted a year behind the module that renders it.
+TODAY = date.today()
 
 PAN_RE = re.compile(r"\b([A-Z]{5}[0-9]{4}[A-Z])\b")
 
