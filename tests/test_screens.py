@@ -160,6 +160,16 @@ def main() -> int:
     checks.append(("a record whose only failure has no route gets no estimate",
                    "Estimated time to fix" not in get("/home", un)))
 
+    # ---- what a missing document costs, said out loud ---------------------
+    checks += [
+        ("a partial record says which questions went unasked",
+         "What we could not check" in get("/home", un)),
+        ("and names the document that would answer them",
+         "service history" in get("/home", un)),
+        ("a complete record is not nagged",
+         "What we could not check" not in get("/home", GOOD)),
+    ]
+
     # ---- the planner ------------------------------------------------------
     co = get("/corrections", BAD)
     p = solver.plan(bad_a)

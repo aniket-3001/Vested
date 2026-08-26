@@ -254,6 +254,17 @@ def page_home(a, token="sample"):
                   + f'<p style="margin-top:12px"><a href="/check?s={esc(token)}">'
                     f"All {len(g)} checks &rarr;</a></p>")
 
+    # sort_uploads works out what each missing document costs the member, and
+    # nothing rendered it. Telling somebody which question went unasked is the
+    # whole difference between "clean" and "not checked".
+    gaps = ""
+    notes = getattr(a, "reduced", None) or []
+    if notes:
+        gaps = card("What we could not check",
+                    "<ul class=\"rz\">"
+                    + "".join(f"<li>{esc(n)}</li>" for n in notes)
+                    + "</ul>", quiet=True)
+
     links = [("&#128202;", "Service Timeline", "/timeline"),
              ("&#9989;", "Claim Check", "/check"),
              ("&#128296;", "Corrections", "/corrections"),
@@ -264,7 +275,7 @@ def page_home(a, token="sample"):
                  for i, l, h in links)
 
     return page(a, token, "/home", "Home",
-                top + f'<div class="grid">{profile}{checks}</div>'
+                top + f'<div class="grid">{profile}{checks}</div>' + gaps
                 + card("Quick Links", f'<div class="ql">{ql}</div>'),
                 crumb="Home", heading=False)
 
