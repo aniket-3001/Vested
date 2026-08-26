@@ -101,7 +101,8 @@ class Reconstructed:
     last_seen: date
     exit_best: date | None
     sources: tuple[str, ...]
-    verdict: str            # agrees | exit_wrong | exit_missing | join_wrong
+    verdict: str            # agrees | exit_wrong | exit_missing
+                            # | join_wrong | unlinked | unchecked
 
     @property
     def self_service_ready(self) -> bool:
@@ -177,6 +178,7 @@ def reconstruct(a) -> list[Reconstructed]:
             if label:
                 names[key] = (label, "")
 
+    checked = bool(getattr(a, "dates_checked", False))
     out: list[Reconstructed] = []
     for key in sorted({o.employer_key for o in obs if o.employer_key}):
         mine = [o for o in obs if o.employer_key == key]
@@ -193,7 +195,7 @@ def reconstruct(a) -> list[Reconstructed]:
         best = _month_end(last)
 
         if svc is None:
-            verdict = "unlinked"
+            verdict = "unlinked" if checked else "unchecked"
         elif svc.doe is None:
             verdict = "exit_missing"
         elif svc.doe < last:

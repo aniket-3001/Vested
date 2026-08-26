@@ -125,6 +125,7 @@ VERDICT_WORD = {
     "exit_missing": ("No exit date recorded", "no"),
     "join_wrong": ("Joining date is wrong", "no"),
     "unlinked": ("Not linked to your UAN", "hm"),
+    "unchecked": ("Not yet checked", "nu2"),
     "agrees": ("Matches the evidence", "ok"),
 }
 
@@ -138,6 +139,7 @@ HINDI = {
     "exit_missing": "छोड़ने की तारीख दर्ज नहीं है",
     "join_wrong": "नौकरी शुरू करने की तारीख गलत है",
     "unlinked": "यह खाता आपके UAN से जुड़ा नहीं है",
+    "unchecked": "अभी जांच नहीं हुई है",
     "agrees": "रिकॉर्ड सही है",
 }
 
@@ -208,13 +210,16 @@ def page_home(a, token="sample"):
               f' <a href="/history-entry?s={esc(token)}">'
               "Your service history has not been checked yet.</a>")
     if fail:
+        est = (f" Estimated time to fix: "
+               f"<strong>{p.critical_days} days</strong>." if p.steps else "")
+        cta = (f'<p><a class="btn" href="/corrections?s={esc(token)}">'
+               f"See the plan</a></p>" if p.steps
+               else f'<p><a class="btn" href="/check?s={esc(token)}">'
+                    f"See which checks</a></p>")
         top = alert(f"<h1>This claim would be rejected</h1>"
                     + hi(HINDI_VERDICT["rejected"]) +
-                    f"<p>{fail} of {len(g)} checks fail. "
-                    f"Estimated time to fix: "
-                    f"<strong>{p.critical_days} days</strong>.{caveat}</p>"
-                    f'<p><a class="btn" href="/corrections?s={esc(token)}">'
-                    f"See the plan</a></p>", "r")
+                    f"<p>{fail} of {len(g)} checks fail.{est}{caveat}</p>"
+                    + cta, "r")
     elif not checked:
         top = alert("<h1>Not yet checked</h1>" + hi(HINDI_VERDICT["unknown"])
                     + "<p>Your service history has not been "

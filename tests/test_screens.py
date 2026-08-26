@@ -33,6 +33,12 @@ def unchecked_token(c) -> str:
     return re.search(r"s=([A-Za-z0-9_-]+)", up.headers["Location"]).group(1)
 
 
+def _load_un(client, tok):
+    """The Analysis behind an unchecked session."""
+    from app.server import _load
+    return _load(tok)
+
+
 def main() -> int:
     checks: list[tuple[str, bool]] = []
     c = create_app().test_client()
@@ -118,6 +124,41 @@ def main() -> int:
         ("a clean record has no advisory failures either",
          not solver.advisory_failures(solver.gates(good_a))),
     ]
+
+    # ---- an absent employer means two different things --------------------
+    # Found on a real record: with no service history every employer was
+    # labelled "Not linked to your UAN" while the transfer page, reading the
+    # same record, said "not yet known". One of them was accusing EPFO of
+    # losing accounts on no evidence.
+    un_recs = solver.reconstruct(_load_un(c, un))
+    checks += [
+        ("with no service history nothing is called unlinked",
+         all(r.verdict != "unlinked" for r in un_recs)),
+        ("it is called unchecked instead",
+         all(r.verdict == "unchecked" for r in un_recs) if un_recs else True),
+        ("and the timeline says so", "Not yet checked" in get("/timeline", un)),
+        ("the timeline and the transfer page agree",
+         ("Not linked" in get("/timeline", un))
+         == ("not linked" in get("/transfer", un))),
+        # With a history in hand it is a real signal again.
+        ("a genuine orphan is still called unlinked",
+         any(r.verdict == "unlinked" for r in solver.reconstruct(bad_a))),
+    ]
+
+    # ---- a failing gate with no correction route --------------------------
+    # G14 (over the auto-settlement ceiling) has no route, so the plan is
+    # empty and the page offered "fix it in 0 days" plus a button to nothing.
+    class _NoPlan:
+        result = {"contradictions": []}
+        orphans = []
+    checks.append(("an empty plan reports no duration at all",
+                   solver.plan(_NoPlan()).critical_days == 0
+                   and not solver.plan(_NoPlan()).steps))
+    # "40 days" contains "0 days", so the check needs a boundary.
+    checks.append(("and the home page never prints a zero-day estimate",
+                   not re.search(r"0 days", get("/home", BAD))))
+    checks.append(("a record whose only failure has no route gets no estimate",
+                   "Estimated time to fix" not in get("/home", un)))
 
     # ---- the planner ------------------------------------------------------
     co = get("/corrections", BAD)
