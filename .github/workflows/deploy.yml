@@ -88,8 +88,13 @@ jobs:
     needs: test
     # Pull requests stop at the test job. A fork PR never reaches this job and
     # so never sees credentials, which is the whole reason deploy is gated on
-    # the event type rather than on the branch alone.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # the event type rather than on the branch alone. A hand-started run counts
+    # too - it can only be started by someone who can already push here, and
+    # without it the manual trigger tests but never ships, which is useless in
+    # the outage it exists for.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
