@@ -633,6 +633,28 @@ def main() -> int:
         ("the years are counted, not asserted", est.years > 1),
     ]
 
+    # ---- an empty list is not the same as a checked empty list -----------
+    # Found in end-to-end verification: three pages asserted good news from an
+    # absence of data rather than from having looked.
+    checks += [
+        ("an uploaded record is not told it has no past rejections",
+         "cannot see your claim history" in get("/why-rejected", un)),
+        ("a demo record, whose history we do have, still asserts it",
+         "No rejected claims" in get("/why-rejected", GOOD)),
+        ("an unchecked record's alerts are qualified",
+         "Nothing to report yet" in get("/notifications", un)),
+        ("a checked clean record's are not",
+         "Nothing to report</h2>" in get("/notifications", GOOD)),
+        ("no withdrawal estimate is offered on a zero balance",
+         "If you withdrew all of it today" not in get("/claim", un)),
+        ("and no page renders a bare None",
+         ">None<" not in get("/claim", un)),
+        ("scheme certificate status is not asserted from having no data",
+         "cannot see whether you hold one" in get("/scheme-certificate", BAD)),
+        ("but the page still explains what one is",
+         "ten years of service" in get("/scheme-certificate", BAD)),
+    ]
+
     # ---- PMVBRY, faithfully unhelpful -------------------------------------
     checks.append(("PMVBRY refuses you exactly as the real one does",
                    "not authorized to access" in get("/pmvbry", BAD)))

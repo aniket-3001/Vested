@@ -365,6 +365,10 @@ class Analysis:
     asserted: list = field(default_factory=list)
     # Claims already filed. Read only; we never write to it.
     claim_history: list = field(default_factory=list)
+    # Whether we have actually seen the claim history. An empty list means
+    # "no past claims" only when this is True; otherwise it means we were
+    # never shown one, which is a different answer entirely.
+    claim_history_known: bool = False
     # PF account numbers printed inside a passbook that are not themselves one
     # of the accounts we could read. Reported, never interpreted.
     related_ids: list = field(default_factory=list)

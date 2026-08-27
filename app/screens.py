@@ -430,9 +430,17 @@ def page_why(a, token="sample", claims=None):
     claims = claims or getattr(a, "claim_history", []) or []
     rows = solver.diagnose(a, claims)
     if not rows:
+        # An empty claim history means "no past rejections" only when we were
+        # actually shown one. On an uploaded record we never see it.
+        if getattr(a, "claim_history_known", False):
+            body = alert("<h2>No rejected claims on this record</h2>", "g")
+        else:
+            body = alert("<h2>We cannot see your claim history</h2>"
+                         "<p>Past claims are held inside EPFO and appear in no "
+                         "document you can download. Check Track Claim Status "
+                         "on the UAN portal.</p>", "b")
         return page(a, token, "/why-rejected", "Why Was My Claim Rejected",
-                    alert("<h2>No rejected claims on this record</h2>", "g"),
-                    crumb="Online Services / Why Was My Claim Rejected")
+                    body, crumb="Online Services / Why Was My Claim Rejected")
     body = ""
     for r in rows:
         causes = ("".join(f"<li>{esc(c)}</li>" for c in r.causes)
@@ -713,10 +721,10 @@ def page_claim(a, token="sample"):
                       ("You would receive", f"<strong>{rs(w.net)}</strong>")]
     else:
         money_rows = [("Balance", rs(w.balance)),
-                      ("Tax deducted", "None"),
+                      ("Tax deducted", "Nil"),
                       ("You would receive", f"<strong>{rs(w.net)}</strong>")]
     why = "".join(f"<li>{esc(r)}</li>" for r in w.reasons)
-    estimate = card("If you withdrew all of it today",
+    estimate = "" if bal <= 0 else card("If you withdrew all of it today",
                     kv(money_rows)
                     + f'<ul class="rz" style="margin-top:14px">{why}</ul>'
                     + '<p class="sub" style="margin-top:10px">An estimate from '
@@ -832,7 +840,19 @@ def page_track_old(a, token="sample"):
 
 def page_scheme_cert(a, token="sample"):
     return page(a, token, "/scheme-certificate", "Scheme Certificate Surrender",
-                alert("<h2>No scheme certificate on this record</h2>", "b"),
+                alert("<h2>We cannot see whether you hold one</h2>"
+                      "<p>Scheme certificates are held inside EPFO and appear "
+                      "in no document you can download.</p>", "b")
+                + card("What it is",
+                       kv([("Issued when",
+                            "You leave before ten years of service and choose "
+                            "to keep the pension record rather than withdraw "
+                            "it"),
+                           ("Why surrender it",
+                            "To add that service to a later job, so the years "
+                            "count towards a pension"),
+                           ("Where", "This page on the UAN member portal")]),
+                       quiet=True),
                 crumb="Online Services / Scheme Certificate Surrender")
 
 
@@ -1063,8 +1083,15 @@ def page_joint_declaration(a, token="sample", submitted=None):
 def page_notifications(a, token="sample", events=None):
     events = events if events is not None else default_events(a)
     if not events:
-        return page(a, token, "/notifications", "Notifications",
-                    alert("<h2>Nothing to report</h2>", "g"),
+        if getattr(a, "dates_checked", False):
+            body = alert("<h2>Nothing to report</h2>", "g")
+        else:
+            body = alert("<h2>Nothing to report yet</h2>"
+                         "<p>Your service history has not been checked, so "
+                         "there is nothing to alert you about.</p>"
+                         f'<p><a class="btn" href="/history-entry?s={esc(token)}">'
+                         "Add service history</a></p>", "b")
+        return page(a, token, "/notifications", "Notifications", body,
                     crumb="Account / Notifications")
     rows = [[_d(e["on"]), esc(e["subject"]), pill(e["kind"], e["tone"])]
             for e in events]

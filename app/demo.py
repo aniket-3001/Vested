@@ -165,6 +165,7 @@ def build(uan: str):
         a.docs = {"26as": args["text_26as"], "passbook": args["passbooks"],
                   "service_history": args["service_history"], "bank": args["bank"]}
         a.claim_history = CLAIM_HISTORY.get(uan, [])
+        a.claim_history_known = True
         _cache[uan] = a
     return _cache[uan]
 
