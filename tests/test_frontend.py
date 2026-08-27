@@ -39,8 +39,9 @@ PATHS = [
     "/history", "/history-entry", "/claim", "/claim-10d", "/transfer",
     "/track", "/track-old", "/scheme-certificate", "/check", "/why-rejected",
     "/pmvbry", "/pmvbry-flc", "/pmvbry-cert", "/privacy", "/print",
+    "/upload",
 ]
-PUBLIC = ["/login", "/upload"]
+PUBLIC = ["/login"]
 
 
 def to_text(doc: str) -> str:
@@ -185,7 +186,10 @@ def main() -> int:
         ("working credentials are printed on it",
          "100999888777" in lb and "rahul" in lb),
         ("both test accounts are offered", "100777666555" in lb),
-        ("and you can still use your own documents", "/upload" in lb),
+        # The opposite of what this once asserted. A site that asks a
+        # stranger for their tax records before they have signed in is the
+        # shape of a PF withdrawal scam; the upload lives inside the portal.
+        ("the sign-in page never asks for documents", "/upload" not in lb),
         ("a wrong password is refused",
          c.post("/login", data={"uan": TOK, "password": "no"}).status_code == 401),
         ("a right password signs you in",

@@ -27,7 +27,7 @@ BAD, GOOD = "100999888777", "100777666555"
 
 def unchecked_token(c) -> str:
     """A session with 26AS only - no service history to test anything against."""
-    up = c.post("/analyse", data={
+    up = c.post("/analyse?s=sample", data={
         "f26as": (io.BytesIO(SAMPLE_26AS.encode()), "26as.txt")},
         content_type="multipart/form-data")
     return re.search(r"s=([A-Za-z0-9_-]+)", up.headers["Location"]).group(1)
@@ -653,6 +653,32 @@ def main() -> int:
          "cannot see whether you hold one" in get("/scheme-certificate", BAD)),
         ("but the page still explains what one is",
          "ten years of service" in get("/scheme-certificate", BAD)),
+    ]
+
+    # ---- nobody is asked for documents before signing in ------------------
+    # A site that asks a stranger for their Form 26AS is the shape of a PF
+    # withdrawal scam, and it is the one screen with no counterpart in the real
+    # portal, where nothing is reachable without a UAN login.
+    lb3 = c.get("/login").get_data(as_text=True)
+    checks += [
+        ("the sign-in page does not link to the upload", "/upload" not in lb3),
+        ("the upload redirects a signed-out visitor to sign in",
+         c.get("/upload").status_code == 303),
+        ("an invented token does not open it",
+         c.get("/upload?s=nonsense").status_code == 303),
+        # _need() falls back to the shared sample record, so omitting the
+        # parameter used to leave the form wide open.
+        ("omitting the session entirely does not open it",
+         c.post("/analyse", data={}, content_type="multipart/form-data"
+                ).status_code == 303),
+        ("a signed-in member reaches it",
+         c.get(f"/upload?s={BAD}").status_code == 200),
+        ("and it sits in the portal navigation",
+         '/upload?s=' in get("/home", BAD)),
+        ("it says what uploading actually does",
+         "replaces the test record with yours" in get("/upload", BAD)),
+        ("and states what happens to the documents",
+         "Held in memory" in get("/upload", BAD)),
     ]
 
     # ---- PMVBRY, faithfully unhelpful -------------------------------------

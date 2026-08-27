@@ -122,12 +122,34 @@ def create_app() -> Flask:
         return redirect(f"/home?s={uan}", code=303)
 
     # ---- upload ----------------------------------------------------------
+    # Behind the sign-in, deliberately. Asking a stranger for their tax records
+    # before they have signed in is the shape of a PF withdrawal scam, and it
+    # is the one screen with no counterpart in the real portal - there, nothing
+    # is reachable without a UAN login.
+    def _signed_in():
+        """
+        A real session, not the shared sample.
+
+        _need() falls back to the sample record when no token is given, which
+        is correct for every read-only page and wrong for the upload: it would
+        leave the form reachable by anyone who just omitted the parameter.
+        """
+        tok = request.args.get("s")
+        if not tok or _load(tok) is None:
+            return None
+        return tok
+
     @app.get("/upload")
     def start():
-        return screens.page_upload()
+        tok = _signed_in()
+        if tok is None:
+            return redirect("/login", code=303)
+        return screens.page_upload(token=tok)
 
     @app.post("/analyse")
     def run():
+        if _signed_in() is None:
+            return redirect("/login", code=303)
         if request.form.get("mode") == "sample":
             return redirect("/home?s=sample", code=303)
         files = []
@@ -136,7 +158,7 @@ def create_app() -> Flask:
                 if fs and fs.filename:
                     files.append((fs.filename, fs.read()))
         if not files:
-            return screens.page_upload("No files selected.")
+            return screens.page_upload("No files selected.", token=_token())
         sorted_up = sort_uploads(files, request.form.get("password") or None)
         f = sorted_up["found"]
         try:
@@ -151,7 +173,7 @@ def create_app() -> Flask:
             # Never surface a stack trace, never log document content.
             return screens.page_upload(
                 "Those documents were read, but we could not make sense of "
-                "the layout.")
+                "the layout.", token=_token())
         return redirect(f"/home?s={_store(a, docs=dict(f))}", code=303)
 
     # ---- session helper --------------------------------------------------
@@ -314,7 +336,8 @@ def create_app() -> Flask:
 
     @app.errorhandler(413)
     def too_big(_e):
-        return screens.page_upload("Those files are too large."), 413
+        return screens.page_upload("Those files are too large.",
+                                   token=_token()), 413
 
     return app
 

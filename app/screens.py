@@ -924,10 +924,7 @@ def page_login(error: str = ""):
                 "</span></div>"
                 + err
                 + f'<div class="accts">{cards}</div>'
-                + card("Or type the credentials yourself", manual, quiet=True)
-                + card("Use your own documents",
-                       '<p><a class="btn o" href="/upload">Check your own '
-                       "record</a></p>", quiet=True))
+                + card("Or type the credentials yourself", manual, quiet=True))
 
 
 def page_privacy(a=None, token="sample"):
@@ -1203,12 +1200,24 @@ def page_history_entry(a, token="sample", errors=None, form=None):
 # Documents are identified by content, not by which box they were dropped into,
 # so the boxes are a convenience rather than a requirement.
 
-def page_upload(error: str = ""):
+def page_upload(error: str = "", token: str = "sample"):
+    """
+    Bring your own documents.
+
+    Behind the sign-in, and inside the portal shell rather than standing on its
+    own. A site that asks a stranger for their tax records before they have
+    signed in is the shape of a PF withdrawal scam, and this is the one screen
+    with no counterpart in the real portal - there, nothing is reachable
+    without a UAN login. The capability is real; only the sequencing was wrong.
+    """
+    from app.server import _load
+    a = _load(token)
     err = alert(f"<h2>{esc(error)}</h2>", "r") if error else ""
     fields = [
         ("f26as", "Form 26AS", "Income Tax portal &rarr; TRACES", True),
         ("passbook", "PF passbook", "passbook.epfindia.gov.in", True),
-        ("history", "Service history", "Online Services &rarr; Member Service History", False),
+        ("history", "Service history",
+         "Online Services &rarr; Member Service History", False),
         ("bank", "Bank statement", "Salary account", False),
     ]
     rows = ""
@@ -1217,33 +1226,32 @@ def page_upload(error: str = ""):
                  f'<span class="sub">&middot; {where}</span></label>'
                  f'<input type="file" id="{name}" name="{name}"'
                  f'{" multiple" if multi else ""}></div>')
-    form = (f'<form method="post" action="/analyse" '
+    form = (f'<form method="post" action="/analyse?s={esc(token)}" '
             f'enctype="multipart/form-data">{rows}'
             f'<div class="fr"><label for="password">Password '
             f'<span class="sub">&middot; Form 26AS is usually locked with your '
-            f'date of birth</span></label>'
+            f'date of birth, as DDMMYYYY</span></label>'
             f'<input type="password" id="password" name="password"></div>'
             f'<button class="btn" type="submit">Check my record</button>'
             f"</form>")
-    return bare("Check your record",
-                '<div class="ttl"><h1>Check your record</h1></div>' + err
+    return page(a, token, "/upload", "Check your own record",
+                err
+                + alert("<h2>This replaces the test record with yours</h2>"
+                        "<p>Same checks, same screens &mdash; your documents "
+                        "instead of ours. Bring whatever you have; one of Form "
+                        "26AS or a passbook is enough to start.</p>", "b")
                 + card("Your documents", form)
-                + card("Or try a test account",
-                       f'<p><a class="btn o" href="/login">Sign in with a test '
-                       f"account</a></p>", quiet=True)
                 + card("What happens to them",
-                       kv([("Stored", "Never"), ("Logged", "Never"),
-                           ("Sent anywhere", "Never"),
-                           ("Held in memory", "30 minutes")]), quiet=True))
+                       kv([("Stored on disk", "Never"),
+                           ("Logged", "Never &mdash; not the filename, not the "
+                                      "contents"),
+                           ("Sent to any model or service", "Never"),
+                           ("Held in memory", "30 minutes, then dropped")])
+                       + f'<p class="sub" style="margin-top:10px">'
+                         f'<a href="/privacy?s={esc(token)}">How to check that '
+                         f"claim</a></p>", quiet=True),
+                crumb="Check your own record")
 
-
-# ---------------------------------------------------------------------------
-# Recovering one forgotten account
-# ---------------------------------------------------------------------------
-# The engine has been producing a four-step recovery plan and a drafted trace
-# request since the beginning, and nothing rendered either. The transfer page
-# listed the account and stopped, which told a member money existed and left
-# them with no way to reach it.
 
 def _orphan(a, tan: str):
     for o in getattr(a, "orphans", []) or []:

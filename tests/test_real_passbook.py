@@ -196,7 +196,7 @@ def main() -> int:
     import io, re as _re
     from app.server import create_app
     cli = create_app().test_client()
-    up = cli.post("/analyse", data={"passbook": [
+    up = cli.post("/analyse?s=sample", data={"passbook": [
         (io.BytesIO(p.encode()), f"pb{i}.txt") for i, p in enumerate(pages)]},
         content_type="multipart/form-data")
     tok = _re.search(r"s=([A-Za-z0-9_-]+)", up.headers.get("Location", "")).group(1)

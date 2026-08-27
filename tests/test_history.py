@@ -46,7 +46,7 @@ ACCOUNTS = [Acct("BLBNG00123450000001234", "ACME TECHNOLOGIES PVT LTD"),
 
 def upload(c):
     """A record with 26AS and passbooks but no service history."""
-    r = c.post("/analyse", data={
+    r = c.post("/analyse?s=sample", data={
         "f26as": [(io.BytesIO(SAMPLE_26AS.encode()), "26as.txt")],
         "passbook": [(io.BytesIO(p.encode()), f"p{i}.txt")
                      for i, p in enumerate(SAMPLE_PASSBOOKS)]},

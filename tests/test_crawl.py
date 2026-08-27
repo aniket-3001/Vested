@@ -33,7 +33,7 @@ def start(client, files):
     """Upload and return the session token."""
     if not files:
         return "sample"
-    resp = client.post("/analyse", data={"passbook": [
+    resp = client.post("/analyse?s=sample", data={"passbook": [
         (io.BytesIO(t.encode()), f"f{i}.txt") for i, t in enumerate(files)]},
         content_type="multipart/form-data")
     m = re.search(r"s=([A-Za-z0-9_-]+)", resp.headers.get("Location", ""))

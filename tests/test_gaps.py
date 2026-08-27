@@ -182,7 +182,7 @@ def main() -> int:
     from app.server import create_app
     import io, re
     c = create_app().test_client()
-    up = c.post("/analyse", data={
+    up = c.post("/analyse?s=sample", data={
         "f26as": [(io.BytesIO(E.SAMPLE_26AS.encode()), "26as.txt")],
         "passbook": [(io.BytesIO(gappy.encode()), "a.txt"),
                      (io.BytesIO(E.SAMPLE_PASSBOOKS[1].encode()), "b.txt")]},

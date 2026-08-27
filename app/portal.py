@@ -71,6 +71,7 @@ MENUS = [
         ("/passbook", "Passbook", False),
         ("/timeline", "Service Timeline", True),
         ("/print", "Record Summary", True),
+        ("/upload", "Use My Own Documents", True),
     ]),
     ("/manage", "Manage", [
         ("/joint-declaration", "Joint Declaration", False),
