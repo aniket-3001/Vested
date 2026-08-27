@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-labelledby="t d">
+  <title id="t">PF Sahi Hai — EPFO's record stops short of the evidence</title>
+  <desc id="d">Four horizontal tracks. EPFO's recorded employment ends in November 2020, while PF contributions, tax deducted and salary credits all continue to March 2021. The overhang is highlighted in red: the defect that freezes a claim.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071110"/>
+      <stop offset="1" stop-color="#0B1A18"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E0705F" stop-opacity="1"/>
+      <stop offset="1" stop-color="#E0705F" stop-opacity=".55"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="340" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="3" fill="#46C7BE"/>
+
+  <!-- wordmark -->
+  <text x="64" y="76" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="40" font-weight="700" fill="#F0F4F3" letter-spacing="-1">PF Sahi Hai</text>
+  <text x="64" y="106" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="14" fill="#46C7BE" letter-spacing="3">CHECK YOUR PF RECORD BEFORE YOU CLAIM</text>
+
+  <!-- axis -->
+  <text x="286" y="150" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#3A4846">APR 2020</text>
+  <text x="1030" y="150" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#3A4846">MAR 2021</text>
+
+  <!-- track 1: EPFO's own record, stopping short -->
+  <text x="266" y="180" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#6B7E7B">EPFO record</text>
+  <rect x="286" y="167" width="800" height="18" rx="4" fill="#101917"/>
+  <rect x="286" y="167" width="536" height="18" rx="4" fill="#5A6A67"/>
+
+  <!-- track 2: PF contributions -->
+  <text x="266" y="216" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#6B7E7B">PF contributions</text>
+  <rect x="286" y="203" width="800" height="18" rx="4" fill="#101917"/>
+  <rect x="286" y="203" width="536" height="18" rx="4" fill="#46C7BE"/>
+  <rect x="822" y="203" width="264" height="18" rx="4" fill="url(#fade)"/>
+
+  <!-- track 3: tax deducted -->
+  <text x="266" y="252" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#6B7E7B">Tax deducted</text>
+  <rect x="286" y="239" width="800" height="18" rx="4" fill="#101917"/>
+  <rect x="286" y="239" width="536" height="18" rx="4" fill="#46C7BE"/>
+  <rect x="822" y="239" width="264" height="18" rx="4" fill="url(#fade)"/>
+
+  <!-- track 4: salary credits -->
+  <text x="266" y="288" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#6B7E7B">Salary credits</text>
+  <rect x="286" y="275" width="800" height="18" rx="4" fill="#101917"/>
+  <rect x="286" y="275" width="536" height="18" rx="4" fill="#46C7BE"/>
+  <rect x="822" y="275" width="264" height="18" rx="4" fill="url(#fade)"/>
+
+  <!-- the seam: where EPFO says the job ended -->
+  <line x1="822" y1="160" x2="822" y2="300" stroke="#E0705F" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="832" y="320" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#E0705F">EPFO says the job ended here</text>
+</svg>
