@@ -96,14 +96,3 @@ executed.
 | [LLD](Docs/LLD.md) | Module-by-module reference — type contracts, the solver, name matching, the gate |
 | [BUILD-LOG](Docs/BUILD-LOG.md) | Two rejected ideas, research findings, the bugs failing tests caught, what is still open |
 | [DEPLOY](DEPLOY.md) | Local, Docker, Cloud Run, and the CI pipeline |
-
-## A note on this repository
-
-Codex wrote most of this code, and the commits it authored carry
-`Co-Authored-By: Codex`.
-
-The git history is a **reconstruction**. The project was built without version
-control, and the history was created afterwards by committing the finished tree
-in dependency order. The commit dates track when the work actually happened; the
-commit messages were written with hindsight. See
-[BUILD-LOG](Docs/BUILD-LOG.md) — the entry for 23 Aug 2026 states this in full.
