@@ -202,7 +202,7 @@ def main() -> int:
         ("a clean-contribution record is not called rejected",
          "would be rejected" not in
          c.get("/home?s=" + re.search(r"s=([A-Za-z0-9_-]+)", c.post(
-             "/analyse", data={
+             "/analyse?s=sample", data={
                  "f26as": [(io.BytesIO(E.SAMPLE_26AS.encode()), "26as.txt")],
                  "passbook": [(io.BytesIO(p.encode()), f"p{i}.txt")
                               for i, p in enumerate(E.SAMPLE_PASSBOOKS)]},
