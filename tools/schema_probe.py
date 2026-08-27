@@ -1,5 +1,5 @@
 """
-SPIKE C - Document schema probe.  *** YOU RUN THIS, NOT CLAUDE. ***
+SPIKE C - Document schema probe.  *** YOU RUN THIS, NOT CODEX. ***
 
 Question this spike answers - and it is the one that can kill the project:
     Do Form 26AS / AIS and the EPF passbook actually contain the fields the
@@ -14,7 +14,7 @@ PRIVACY: this script prints STRUCTURE ONLY. No names, no amounts, no PAN, no
 UAN, no employer names, no dates. Only: which anchor fields were found, how
 many rows parsed, and how many months of coverage. Read the REDACTION NOTES at
 the bottom before sharing output. Nothing here needs to leave your machine -
-just tell Claude which checks passed.
+just tell Codex which checks passed.
 
 Usage:
     python tools/schema_probe.py path/to/26AS.pdf --type 26as

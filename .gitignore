@@ -7,7 +7,6 @@ venv/
 env/
 
 # Local tooling / editor state
-.claude/settings.local.json
 .tokensave/
 .idea/
 .vscode/

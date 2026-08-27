@@ -36,7 +36,7 @@ parts could be adopted rather than bolted on.
 [Testing](#testing) ·
 [Docs](Docs/)
 
-<sub>🤖 Built with AI assistance (Claude / Claude Code) — see the <a href="#ai-assistance-disclosure">full disclosure</a>.</sub>
+<sub>🤖 Built with AI assistance (Codex) — see the <a href="#ai-assistance-disclosure">full disclosure</a>.</sub>
 
 </div>
 
@@ -383,7 +383,7 @@ their PF most. Stated on-screen, not buried here.
 
 ## AI assistance disclosure
 
-Built with AI assistance (Claude / Claude Code). The problem selection, the EPFO
+Built with AI assistance (Codex). The problem selection, the EPFO
 research, the architectural line between model and solver, and every product
 decision recorded in [BUILD-LOG](Docs/BUILD-LOG.md) were directed by me;
 implementation was paired with the tooling. Where research could not be confirmed
